@@ -57,6 +57,29 @@
     groups.forEach(function (o) { o.classList.remove('open'); });
   });
 
+  /* ---- Show / hide password toggle ---- */
+  document.querySelectorAll('input[type="password"]').forEach(function (input) {
+    var wrap = document.createElement('div');
+    wrap.className = 'pw-wrap';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pw-toggle';
+    btn.textContent = 'Show';
+    btn.setAttribute('aria-label', 'Show password');
+    wrap.appendChild(btn);
+
+    btn.addEventListener('click', function () {
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.textContent = show ? 'Hide' : 'Show';
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      input.focus();
+    });
+  });
+
   /* ---- Confirm destructive admin actions ---- */
   document.querySelectorAll('[data-confirm]').forEach(function (el) {
     el.addEventListener('submit', function (e) {

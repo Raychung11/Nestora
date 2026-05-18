@@ -195,6 +195,14 @@ section{padding:72px 0}
   outline:none;border-color:var(--terracotta);background:#fff;
 }
 .field textarea{min-height:110px;resize:vertical}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:66px}
+.pw-toggle{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;font-family:inherit;
+  font-size:.8rem;color:var(--muted);padding:6px 8px;
+}
+.pw-toggle:hover{color:var(--terracotta)}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 
 /* ---- Quiz ---- */
