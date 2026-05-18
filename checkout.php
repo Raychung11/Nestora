@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/customer_auth.php';
 
 $pageTitle = 'Checkout';
 
@@ -7,6 +7,22 @@ if (empty($_SESSION['cart'])) {
     set_flash('info', 'Your cart is empty.');
     redirect(base_url('/cart.php'));
 }
+
+// Prefill from the signed-in customer's record, if any.
+$acct = current_customer();
+$acctRow = null;
+if ($acct) {
+    $aStmt = db()->prepare('SELECT name, phone, email, address FROM customers WHERE id = :id LIMIT 1');
+    $aStmt->execute([':id' => $acct['id']]);
+    $acctRow = $aStmt->fetch() ?: null;
+}
+$prefill = static function (string $key) use ($acctRow): string {
+    $v = input($key);
+    if ($v !== '') {
+        return e($v);
+    }
+    return e((string) ($acctRow[$key] ?? ''));
+};
 
 // Load cart items
 $ids   = implode(',', array_map('intval', array_keys($_SESSION['cart'])));
@@ -53,17 +69,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo = db();
         $pdo->beginTransaction();
         try {
-            // Reuse customer by phone or create a new one.
-            $cStmt = $pdo->prepare('SELECT id FROM customers WHERE phone = :phone LIMIT 1');
-            $cStmt->execute([':phone' => $phone]);
-            $customerId = $cStmt->fetchColumn();
+            if ($acct) {
+                // Signed-in customer: attach order to their account and
+                // keep their saved details current.
+                $customerId = (int) $acct['id'];
+                $pdo->prepare(
+                    'UPDATE customers SET name = :n, phone = :p, email = :e, address = :a WHERE id = :id'
+                )->execute([':n' => $name, ':p' => $phone, ':e' => $email ?: null,
+                            ':a' => $address, ':id' => $customerId]);
+            } else {
+                // Guest: reuse a customer by phone or create a new one.
+                $cStmt = $pdo->prepare('SELECT id FROM customers WHERE phone = :phone LIMIT 1');
+                $cStmt->execute([':phone' => $phone]);
+                $customerId = $cStmt->fetchColumn();
 
-            if (!$customerId) {
-                $cIns = $pdo->prepare(
-                    'INSERT INTO customers (name, phone, email, address) VALUES (:n,:p,:e,:a)'
-                );
-                $cIns->execute([':n' => $name, ':p' => $phone, ':e' => $email ?: null, ':a' => $address]);
-                $customerId = (int) $pdo->lastInsertId();
+                if (!$customerId) {
+                    $cIns = $pdo->prepare(
+                        'INSERT INTO customers (name, phone, email, address) VALUES (:n,:p,:e,:a)'
+                    );
+                    $cIns->execute([':n' => $name, ':p' => $phone, ':e' => $email ?: null, ':a' => $address]);
+                    $customerId = (int) $pdo->lastInsertId();
+                }
             }
 
             $orderNumber = generate_order_number();
@@ -138,12 +164,19 @@ require_once __DIR__ . '/inc/header.php';
         <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:30px;align-items:start">
             <form class="form-card" method="post" style="margin:0;max-width:none">
                 <?= csrf_field() ?>
-                <div class="field"><label>Full name</label><input type="text" name="name" value="<?= e(input('name')) ?>" required></div>
+                <?php if ($acct): ?>
+                    <div class="flash flash-info">Signed in as <?= e($acct['name']) ?>. This order will be saved to your account.</div>
+                <?php else: ?>
+                    <div class="flash flash-info" style="background:var(--oat)">
+                        Have an account? <a href="<?= base_url('/login.php') ?>" style="color:var(--terracotta)">Sign in</a> to track your orders &mdash; or continue as a guest.
+                    </div>
+                <?php endif; ?>
+                <div class="field"><label>Full name</label><input type="text" name="name" value="<?= $prefill('name') ?>" required></div>
                 <div class="form-row">
-                    <div class="field"><label>Phone / WhatsApp</label><input type="text" name="phone" value="<?= e(input('phone')) ?>" required></div>
-                    <div class="field"><label>Email (optional)</label><input type="email" name="email" value="<?= e(input('email')) ?>"></div>
+                    <div class="field"><label>Phone / WhatsApp</label><input type="text" name="phone" value="<?= $prefill('phone') ?>" required></div>
+                    <div class="field"><label>Email (optional)</label><input type="email" name="email" value="<?= $prefill('email') ?>"></div>
                 </div>
-                <div class="field"><label>Delivery address</label><textarea name="address" required><?= e(input('address')) ?></textarea></div>
+                <div class="field"><label>Delivery address</label><textarea name="address" required><?= $prefill('address') ?></textarea></div>
                 <div class="field">
                     <label>Payment method</label>
                     <select name="payment_method" id="payMethod">

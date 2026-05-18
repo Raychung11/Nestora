@@ -1,5 +1,5 @@
 <?php
-require_once dirname(__DIR__) . '/inc/functions.php';
+require_once dirname(__DIR__) . '/inc/customer_auth.php';
 
 $pageTitle = $pageTitle ?? get_setting('site_name', 'NESTORA');
 $pageDesc  = $pageDesc ?? get_setting('tagline', 'A Home That Takes Care of You');
@@ -33,6 +33,13 @@ $pageDesc  = $pageDesc ?? get_setting('tagline', 'A Home That Takes Care of You'
             <a href="<?= base_url('/installment.php') ?>">Installment</a>
             <a href="<?= base_url('/about.php') ?>">About</a>
             <a href="<?= base_url('/contact.php') ?>">Contact</a>
+            <?php if ($nestoraCustomer = current_customer()): ?>
+                <a href="<?= base_url('/account.php') ?>">Hi, <?= e(explode(' ', trim($nestoraCustomer['name']))[0]) ?></a>
+                <a href="<?= base_url('/logout.php') ?>">Sign out</a>
+            <?php else: ?>
+                <a href="<?= base_url('/login.php') ?>">Sign in</a>
+                <a href="<?= base_url('/register.php') ?>">Register</a>
+            <?php endif; ?>
             <a class="nav-cta" href="<?= base_url('/cart.php') ?>">Cart</a>
         </nav>
     </div>

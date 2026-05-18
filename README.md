@@ -64,9 +64,13 @@ in Phase 1. Dashboard now tracks payments awaiting verification.
 Run `database/phase2.sql` (or re-run `install.php`) to add the
 `payment_proofs` table and bank settings to an existing Phase 1 database.
 
-Phase 3 (Billplz/FPX gateway, live WhatsApp AI integration, customer
-login, scent refill subscription) layers on without schema-breaking
-changes.
+Customer accounts (a Phase 3 item) have been brought forward: register /
+login / logout, a "My Account" page with order history, and checkout that
+prefills and links orders to the signed-in account (`customers.password_hash`
+was already in the schema, so no migration needed).
+
+Remaining Phase 3 (Billplz/FPX gateway, live WhatsApp AI integration,
+scent refill subscription) layers on without schema-breaking changes.
 
 ## Security
 
