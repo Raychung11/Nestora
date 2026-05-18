@@ -149,7 +149,12 @@ function product_card(array $p): void {
 <!-- 7. Brand ambassador -->
 <section>
     <div class="container ambassador">
-        <div class="a-photo"></div>
+        <?php $ambassadorImg = get_setting('ambassador_image'); ?>
+        <?php if ($ambassadorImg && is_file(APP_ROOT . '/' . ltrim($ambassadorImg, '/'))): ?>
+            <div class="a-photo"><img src="<?= e(base_url('/' . ltrim($ambassadorImg, '/'))) ?>" alt="<?= e(get_setting('ambassador_name', 'Nestora Comfort Ambassador')) ?>"></div>
+        <?php else: ?>
+            <div class="a-photo"></div>
+        <?php endif; ?>
         <div class="a-body">
             <span class="eyebrow" style="color:var(--terracotta);letter-spacing:.22em;text-transform:uppercase;font-size:.72rem">Brand Ambassador</span>
             <h2 style="margin:12px 0"><?= e(get_setting('ambassador_name', 'Nestora Comfort Ambassador')) ?></h2>

@@ -22,6 +22,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($keys as $k) {
             $up->execute([':k' => $k, ':v' => input($k)]);
         }
+
+        // Ambassador image: remove, or upload a new one.
+        if (input('remove_ambassador_image') === '1') {
+            $cur = get_setting('ambassador_image');
+            if ($cur) {
+                $abs = APP_ROOT . '/' . ltrim($cur, '/');
+                if (is_file($abs)) { @unlink($abs); }
+            }
+            $up->execute([':k' => 'ambassador_image', ':v' => '']);
+        } elseif (!empty($_FILES['ambassador_image']['name'])) {
+            try {
+                $path = handle_image_upload($_FILES['ambassador_image'], UPLOAD_BRAND_DIR, 'ambassador');
+                if ($path) {
+                    $up->execute([':k' => 'ambassador_image', ':v' => $path]);
+                }
+            } catch (Throwable $ex) {
+                set_flash('error', $ex->getMessage());
+                redirect(base_url('/admin/settings.php'));
+            }
+        }
+
         set_flash('success', 'Settings saved.');
 
     } elseif ($action === 'add_admin') {
@@ -65,7 +86,7 @@ require_once __DIR__ . '/../inc/admin_layout.php';
 
 $s = fn(string $k, string $d='') => get_setting($k, $d);
 ?>
-<form class="panel" method="post" style="max-width:760px">
+<form class="panel" method="post" enctype="multipart/form-data" style="max-width:760px">
     <?= csrf_field() ?>
     <input type="hidden" name="action" value="save_settings">
     <h2>Site &amp; homepage content</h2>
@@ -88,6 +109,21 @@ $s = fn(string $k, string $d='') => get_setting($k, $d);
     <div class="form-row">
         <div class="field"><label>Ambassador name</label><input type="text" name="ambassador_name" value="<?= e((string)$s('ambassador_name')) ?>"></div>
         <div class="field"><label>Ambassador text</label><input type="text" name="ambassador_text" value="<?= e((string)$s('ambassador_text')) ?>"></div>
+    </div>
+    <div class="field">
+        <label>Ambassador photo (JPG, PNG or WEBP)</label>
+        <?php $ambImg = (string) $s('ambassador_image'); ?>
+        <?php if ($ambImg): ?>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px">
+                <img src="<?= e(base_url('/' . ltrim($ambImg, '/'))) ?>" alt="Ambassador"
+                     style="width:110px;height:110px;object-fit:cover;border-radius:14px;border:1px solid var(--line)">
+                <label class="muted" style="font-weight:400">
+                    <input type="checkbox" name="remove_ambassador_image" value="1"> Remove current photo
+                </label>
+            </div>
+        <?php endif; ?>
+        <input type="file" name="ambassador_image" accept="image/jpeg,image/png,image/webp">
+        <p class="muted" style="font-size:.8rem;margin-top:6px">Shown in the Brand Ambassador section on the homepage. Square images look best.</p>
     </div>
 
     <h3 style="margin:22px 0 12px">Bank &amp; manual payment</h3>
