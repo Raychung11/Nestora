@@ -250,6 +250,7 @@ section{padding:72px 0}
 .admin-sidebar{
   width:248px;background:var(--brown);color:#e9dccb;padding:26px 18px;
   display:flex;flex-direction:column;position:sticky;top:0;height:100vh;
+  overflow-y:auto;
 }
 .admin-brand{font-family:var(--font-serif);font-size:1.4rem;letter-spacing:.18em;color:#fff;margin-bottom:28px}
 .admin-brand span{display:block;font-size:.66rem;letter-spacing:.3em;color:#bca98f}
@@ -262,7 +263,8 @@ section{padding:72px 0}
 .admin-main{flex:1;display:flex;flex-direction:column;min-width:0}
 .admin-topbar{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:20px 30px;border-bottom:1px solid var(--line)}
 .admin-topbar h1{font-size:1.5rem}
-.admin-user{font-size:.9rem;color:var(--brown);text-align:right}
+.admin-topbar-actions{display:flex;align-items:center;gap:16px}
+.admin-user{font-size:.9rem;color:var(--brown);text-align:right;line-height:1.2}
 .admin-role{display:block;font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
 .admin-content{padding:30px;flex:1}
 
@@ -305,8 +307,10 @@ section{padding:72px 0}
   body.nav-open .site-nav{display:flex}
   .product-grid,.testi-grid,.eco-grid,.footer-grid,.form-row{grid-template-columns:1fr}
   .admin-shell{flex-direction:column}
-  .admin-sidebar{width:100%;height:auto;position:static;flex-direction:column}
+  .admin-sidebar{width:100%;height:auto;position:static;flex-direction:column;overflow:visible}
   .admin-sidebar nav{flex-direction:row;flex-wrap:wrap}
+  .admin-topbar{flex-wrap:wrap;gap:12px}
+  .admin-topbar-actions{gap:12px}
   .stat-grid{grid-template-columns:1fr 1fr}
   section{padding:54px 0}
 }

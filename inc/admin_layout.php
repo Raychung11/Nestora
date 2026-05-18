@@ -54,9 +54,13 @@ $currentFile = basename($_SERVER['SCRIPT_NAME']);
     <div class="admin-main">
         <header class="admin-topbar">
             <h1><?= e($pageTitle) ?></h1>
-            <div class="admin-user">
-                <?= e($admin['name'] ?? 'Admin') ?>
-                <span class="admin-role"><?= e(label($admin['role'] ?? 'admin')) ?></span>
+            <div class="admin-topbar-actions">
+                <a class="btn btn-soft btn-sm" href="<?= base_url('/index.php') ?>" target="_blank" rel="noopener">View site &#8599;</a>
+                <div class="admin-user">
+                    <?= e($admin['name'] ?? 'Admin') ?>
+                    <span class="admin-role"><?= e(label($admin['role'] ?? 'admin')) ?></span>
+                </div>
+                <a class="btn btn-danger btn-sm" href="<?= base_url('/admin/logout.php') ?>">Sign out</a>
             </div>
         </header>
         <div class="admin-content">
