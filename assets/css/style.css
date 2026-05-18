@@ -65,10 +65,22 @@ section{padding:72px 0}
 .header-inner{display:flex;align-items:center;justify-content:space-between;padding:16px 0}
 .brand{display:flex;flex-direction:column;line-height:1.1}
 .brand-mark{font-family:var(--font-serif);font-size:1.5rem;letter-spacing:.22em;color:var(--brown)}
-.brand-sub{font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
-.site-nav{display:flex;align-items:center;gap:26px}
-.site-nav a{font-size:.93rem;color:var(--ink);opacity:.85}
-.site-nav a:hover{opacity:1;color:var(--terracotta)}
+.brand-sub{font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.site-nav{display:flex;align-items:center;gap:22px;white-space:nowrap}
+.site-nav a,.nav-group-label{font-size:.93rem;color:var(--ink);opacity:.85}
+.site-nav a:hover,.nav-group-label:hover{opacity:1;color:var(--terracotta)}
+.nav-group-label{background:none;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;padding:0}
+.nav-group-label::after{content:"\25BE";font-size:.7em;opacity:.6}
+.nav-group{position:relative;padding-bottom:8px;margin-bottom:-8px}
+.nav-dropdown{
+  position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  background:#fff;border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);padding:10px;min-width:210px;
+  display:none;flex-direction:column;gap:2px;z-index:60;
+}
+.nav-dropdown a{padding:9px 12px;border-radius:8px;font-size:.9rem;opacity:.9}
+.nav-dropdown a:hover{background:var(--oat);opacity:1}
+.nav-group:hover .nav-dropdown,.nav-group.open .nav-dropdown{display:flex}
 .nav-cta{padding:9px 20px;border:1px solid var(--brown);border-radius:999px}
 .nav-toggle{display:none;background:none;border:none;font-size:1.5rem;color:var(--brown);cursor:pointer}
 
@@ -298,13 +310,27 @@ section{padding:72px 0}
   .footer-grid{grid-template-columns:1fr 1fr}
   .stat-grid{grid-template-columns:repeat(2,1fr)}
 }
-@media(max-width:760px){
+/* Collapse the top nav to a menu earlier so it never crowds/wraps */
+@media(max-width:1024px){
   .nav-toggle{display:block}
   .site-nav{
     display:none;position:absolute;top:100%;left:0;right:0;background:var(--cream);
-    flex-direction:column;padding:18px 5%;gap:14px;border-bottom:1px solid var(--line);
+    flex-direction:column;align-items:flex-start;padding:18px 5%;gap:6px;
+    border-bottom:1px solid var(--line);white-space:normal;
   }
   body.nav-open .site-nav{display:flex}
+  .site-nav>a,.nav-group{width:100%;padding:8px 0}
+  .nav-group{margin:0}
+  .nav-group-label{font-weight:600}
+  .nav-group-label::after{display:none}
+  .nav-dropdown{
+    position:static;transform:none;display:flex;border:none;box-shadow:none;
+    padding:6px 0 6px 16px;min-width:0;background:transparent;
+  }
+  .nav-dropdown a{padding:7px 0}
+  .nav-cta{display:inline-block;margin-top:6px}
+}
+@media(max-width:760px){
   .product-grid,.testi-grid,.eco-grid,.footer-grid,.form-row{grid-template-columns:1fr}
   .admin-shell{flex-direction:column}
   .admin-sidebar{width:100%;height:auto;position:static;flex-direction:column;overflow:visible}

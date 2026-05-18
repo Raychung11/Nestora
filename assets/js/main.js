@@ -41,6 +41,22 @@
     show(0);
   }
 
+  /* ---- Nav dropdowns (click/touch; desktop also opens on hover) ---- */
+  var groups = document.querySelectorAll('.nav-group');
+  groups.forEach(function (g) {
+    var label = g.querySelector('.nav-group-label');
+    if (!label) return;
+    label.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var wasOpen = g.classList.contains('open');
+      groups.forEach(function (o) { o.classList.remove('open'); });
+      if (!wasOpen) g.classList.add('open');
+    });
+  });
+  document.addEventListener('click', function () {
+    groups.forEach(function (o) { o.classList.remove('open'); });
+  });
+
   /* ---- Confirm destructive admin actions ---- */
   document.querySelectorAll('[data-confirm]').forEach(function (el) {
     el.addEventListener('submit', function (e) {
