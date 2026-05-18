@@ -1,0 +1,9 @@
+# NESTORA.my - root protection
+Options -Indexes
+
+# Block direct access to sensitive directories
+RewriteEngine On
+RewriteRule ^(config|inc|database)/ - [F,L]
+
+# Default document
+DirectoryIndex index.php

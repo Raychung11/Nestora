@@ -1,0 +1,15 @@
+# Uploaded media (keep the folders, ignore the files)
+uploads/products/*
+uploads/banners/*
+uploads/brand/*
+!uploads/**/.gitkeep
+
+# Local config overrides
+config/db_config.local.php
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
