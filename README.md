@@ -50,9 +50,23 @@ admin dashboard (orders, leads, installment, top products, repeat scent
 customers) · categories · customers · suppliers · installment requests ·
 banners · testimonials · site/content settings · admin users.
 
-Phase 2/3 (cart→payment upload, Billplz, WhatsApp AI, customer login,
-scent refill subscription) are scaffolded via the data model and admin
-modules and can be layered on without schema changes.
+## Phase 2 (delivered)
+
+Manual payment upload (`payment.php`) with bank details + image/PDF proof,
+admin verification (`admin/payments.php` → marks order paid/failed) ·
+standalone installment application (`installment_apply.php`) feeding the
+existing admin installment workflow · Nestora AI Comfort Advisor
+qualification flow (`comfort_advisor.php`) that captures a WhatsApp lead
+and hands off to WhatsApp with a prefilled summary, managed in
+`admin/whatsapp_leads.php` · supplier management & cart/checkout shipped
+in Phase 1. Dashboard now tracks payments awaiting verification.
+
+Run `database/phase2.sql` (or re-run `install.php`) to add the
+`payment_proofs` table and bank settings to an existing Phase 1 database.
+
+Phase 3 (Billplz/FPX gateway, live WhatsApp AI integration, customer
+login, scent refill subscription) layers on without schema-breaking
+changes.
 
 ## Security
 

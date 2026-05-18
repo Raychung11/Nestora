@@ -186,7 +186,7 @@ function product_card(array $p): void {
                 <h2>Meet your Nestora AI Comfort Advisor</h2>
                 <p>Warm, calm and helpful. Tell us how you want your home to feel and we&rsquo;ll guide you to the right comfort.</p>
             </div>
-            <a class="btn btn-primary btn-lg" href="<?= whatsapp_url() ?>" target="_blank" rel="noopener">Chat on WhatsApp</a>
+            <a class="btn btn-primary btn-lg" href="<?= base_url('/comfort_advisor.php') ?>">Talk to the Comfort Advisor</a>
         </div>
     </div>
 </section>

@@ -51,8 +51,9 @@ require_once __DIR__ . '/inc/header.php';
             </div>
         <?php endif; ?>
 
-        <div style="text-align:center;margin-top:36px">
-            <a class="btn btn-primary btn-lg" href="<?= whatsapp_url('Hi Nestora, I would like to know more about the monthly comfort plan.') ?>" target="_blank" rel="noopener">Ask about a plan</a>
+        <div style="text-align:center;margin-top:36px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+            <a class="btn btn-primary btn-lg" href="<?= base_url('/installment_apply.php') ?>">Apply for a plan</a>
+            <a class="btn btn-soft btn-lg" href="<?= whatsapp_url('Hi Nestora, I would like to know more about the monthly comfort plan.') ?>" target="_blank" rel="noopener">Ask about a plan</a>
         </div>
     </div>
 </section>

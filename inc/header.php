@@ -29,6 +29,7 @@ $pageDesc  = $pageDesc ?? get_setting('tagline', 'A Home That Takes Care of You'
             <a href="<?= base_url('/products.php?type=furniture') ?>">Furniture</a>
             <a href="<?= base_url('/products.php?type=essential_oil') ?>">Essential Oils</a>
             <a href="<?= base_url('/comfort_quiz.php') ?>">Comfort Quiz</a>
+            <a href="<?= base_url('/comfort_advisor.php') ?>">AI Advisor</a>
             <a href="<?= base_url('/installment.php') ?>">Installment</a>
             <a href="<?= base_url('/about.php') ?>">About</a>
             <a href="<?= base_url('/contact.php') ?>">Contact</a>

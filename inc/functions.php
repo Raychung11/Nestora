@@ -249,6 +249,48 @@ function handle_image_upload(array $file, string $targetDir, string $prefix = 'i
     return 'uploads/' . basename($targetDir) . '/' . $filename;
 }
 
+/**
+ * Payment proof upload — accepts JPG, PNG, WEBP and PDF.
+ */
+function handle_proof_upload(array $file, string $targetDir, string $prefix = 'pay'): ?string
+{
+    if (!isset($file['error']) || $file['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Upload failed. Please try again.');
+    }
+    if ($file['size'] > 8 * 1024 * 1024) {
+        throw new RuntimeException('File too large (max 8MB).');
+    }
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime  = $finfo->file($file['tmp_name']);
+    $allowed = [
+        'image/jpeg'      => 'jpg',
+        'image/png'       => 'png',
+        'image/webp'      => 'webp',
+        'application/pdf' => 'pdf',
+    ];
+    if (!isset($allowed[$mime])) {
+        throw new RuntimeException('Only JPG, PNG, WEBP or PDF files are allowed.');
+    }
+
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0775, true);
+    }
+
+    $ext      = $allowed[$mime];
+    $filename = $prefix . '-' . date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '.' . $ext;
+    $dest     = rtrim($targetDir, '/') . '/' . $filename;
+
+    if (!move_uploaded_file($file['tmp_name'], $dest)) {
+        throw new RuntimeException('Could not save the uploaded file.');
+    }
+
+    return 'uploads/' . basename($targetDir) . '/' . $filename;
+}
+
 /* --------------------------------------------------------------------
  * Human-friendly status label
  * ------------------------------------------------------------------ */

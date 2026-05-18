@@ -32,7 +32,12 @@ require_once __DIR__ . '/inc/header.php';
             <?php else: ?>
                 <p class="muted">Your order inquiry has been received. Our Nestora team will reach out shortly.</p>
             <?php endif; ?>
-            <a class="btn btn-primary btn-lg" href="<?= whatsapp_url('Hi Nestora, I just placed order ' . ($order['order_number'] ?? '') . '. I would like to confirm the next steps.') ?>" target="_blank" rel="noopener">Confirm on WhatsApp</a>
+            <?php if ($order): ?>
+                <a class="btn btn-primary btn-lg" href="<?= base_url('/payment.php?order=' . urlencode($order['order_number'])) ?>">Upload payment proof</a>
+                <a class="btn btn-soft btn-lg" href="<?= whatsapp_url('Hi Nestora, I just placed order ' . $order['order_number'] . '. I would like to confirm the next steps.') ?>" target="_blank" rel="noopener">Confirm on WhatsApp</a>
+            <?php else: ?>
+                <a class="btn btn-primary btn-lg" href="<?= whatsapp_url('Hi Nestora, I just placed an order. I would like to confirm the next steps.') ?>" target="_blank" rel="noopener">Confirm on WhatsApp</a>
+            <?php endif; ?>
             <div style="margin-top:18px"><a href="<?= base_url('/index.php') ?>" class="muted">Back to home</a></div>
         </div>
     </div>

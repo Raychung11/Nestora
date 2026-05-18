@@ -12,6 +12,7 @@ $monthlySales  = (float) $pdo->query("SELECT COALESCE(SUM(total_amount),0) FROM 
 $quizLeads     = (int) $pdo->query("SELECT COUNT(*) FROM comfort_quiz_leads WHERE status='new'")->fetchColumn();
 $instRequests  = (int) $pdo->query("SELECT COUNT(*) FROM installment_requests WHERE status IN ('new','reviewing')")->fetchColumn();
 $waLeads       = (int) $pdo->query("SELECT COUNT(*) FROM whatsapp_leads WHERE status='new'")->fetchColumn();
+$paymentsToVerify = (int) $pdo->query("SELECT COUNT(*) FROM payment_proofs WHERE status='submitted'")->fetchColumn();
 
 $topProducts = $pdo->query(
     "SELECT product_name, SUM(quantity) AS qty, SUM(line_total) AS revenue
@@ -44,7 +45,15 @@ require_once __DIR__ . '/../inc/admin_layout.php';
     <div class="stat"><div class="num"><?= $quizLeads ?></div><div class="lbl">New Quiz Leads</div></div>
     <div class="stat"><div class="num"><?= $instRequests ?></div><div class="lbl">Installment Requests</div></div>
     <div class="stat"><div class="num"><?= $waLeads ?></div><div class="lbl">New WhatsApp Leads</div></div>
+    <div class="stat"><div class="num"><?= $paymentsToVerify ?></div><div class="lbl">Payments to Verify</div></div>
 </div>
+
+<?php if ($paymentsToVerify > 0): ?>
+<div class="flash flash-info">
+    <?= $paymentsToVerify ?> payment proof<?= $paymentsToVerify === 1 ? '' : 's' ?> awaiting verification.
+    <a href="<?= base_url('/admin/payments.php?status=submitted') ?>">Review now &rarr;</a>
+</div>
+<?php endif; ?>
 
 <div class="panel">
     <div class="panel-head"><h2>Recent orders</h2><a class="btn btn-soft btn-sm" href="<?= base_url('/admin/orders.php') ?>">View all</a></div>

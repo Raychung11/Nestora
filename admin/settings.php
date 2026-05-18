@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'site_name','tagline','hero_headline','hero_subtext',
             'whatsapp_number','whatsapp_default_message','contact_email','contact_phone',
             'installment_public_text','delivery_public_text','ambassador_name','ambassador_text',
+            'bank_name','bank_account_name','bank_account_number','payment_instructions',
         ];
         $up = $pdo->prepare(
             'INSERT INTO site_settings (setting_key, setting_value) VALUES (:k,:v)
@@ -88,6 +89,15 @@ $s = fn(string $k, string $d='') => get_setting($k, $d);
         <div class="field"><label>Ambassador name</label><input type="text" name="ambassador_name" value="<?= e((string)$s('ambassador_name')) ?>"></div>
         <div class="field"><label>Ambassador text</label><input type="text" name="ambassador_text" value="<?= e((string)$s('ambassador_text')) ?>"></div>
     </div>
+
+    <h3 style="margin:22px 0 12px">Bank &amp; manual payment</h3>
+    <div class="form-row">
+        <div class="field"><label>Bank name</label><input type="text" name="bank_name" value="<?= e((string)$s('bank_name')) ?>"></div>
+        <div class="field"><label>Account name</label><input type="text" name="bank_account_name" value="<?= e((string)$s('bank_account_name')) ?>"></div>
+    </div>
+    <div class="field"><label>Account number</label><input type="text" name="bank_account_number" value="<?= e((string)$s('bank_account_number')) ?>"></div>
+    <div class="field"><label>Payment instructions</label><textarea name="payment_instructions"><?= e((string)$s('payment_instructions')) ?></textarea></div>
+
     <button class="btn btn-primary btn-block" type="submit">Save settings</button>
 </form>
 

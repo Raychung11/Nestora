@@ -68,7 +68,8 @@ require_once __DIR__ . '/inc/header.php';
                     $mp = monthly_payment($eff, $m); ?>
                     <div class="pd-inst">
                         <strong>From <?= money($mp) ?>/month for <?= $m ?> months.</strong><br>
-                        <span class="muted"><?= e(get_setting('installment_public_text', 'Bring comfort home today, pay comfortably over time.')) ?></span>
+                        <span class="muted"><?= e(get_setting('installment_public_text', 'Bring comfort home today, pay comfortably over time.')) ?></span><br>
+                        <a href="<?= base_url('/installment_apply.php?product=' . urlencode($p['slug'])) ?>" style="color:var(--terracotta);font-size:.9rem">Apply for a monthly comfort plan &rarr;</a>
                     </div>
                 <?php endif; ?>
 
