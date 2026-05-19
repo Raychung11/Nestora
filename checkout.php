@@ -2,6 +2,7 @@
 require_once __DIR__ . '/inc/customer_auth.php';
 require_once __DIR__ . '/inc/mailer.php';
 require_once __DIR__ . '/inc/documents.php';
+require_once __DIR__ . '/inc/hitpay.php';
 
 $pageTitle = 'Checkout';
 
@@ -57,8 +58,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payment = input('payment_method', 'bank_transfer');
     $months  = (int) input('installment_months', 0);
 
-    $validPay = ['bank_transfer', 'fpx', 'installment', 'cash_deposit'];
+    $validPay = ['bank_transfer', 'fpx', 'installment', 'cash_deposit', 'hitpay'];
     if (!in_array($payment, $validPay, true)) { $payment = 'bank_transfer'; }
+    if ($payment === 'hitpay' && !hitpay_enabled()) { $payment = 'bank_transfer'; }
     if (!in_array($months, [0, 6, 12, 24], true)) { $months = 0; }
     if ($payment !== 'installment') { $months = 0; }
     if ($payment === 'installment' && $months === 0) { $months = $maxMonthsAllowed ?: 24; }
@@ -182,6 +184,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         . '</p>'));
             }
 
+            if ($payment === 'hitpay' && hitpay_enabled()) {
+                try {
+                    $payUrl = hitpay_start_for_order($pdo, [
+                        'id' => $orderId, 'order_number' => $orderNumber,
+                        'total_amount' => $total, 'customer_name' => $name,
+                        'email' => $email,
+                    ]);
+                    redirect($payUrl);
+                } catch (Throwable $hx) {
+                    set_flash('info', 'Your order is saved. Online payment could not be '
+                        . 'started just now — you can pay by bank transfer below.');
+                    redirect(base_url('/order_success.php?order=' . urlencode($orderNumber)));
+                }
+            }
+
             set_flash('success', 'Thank you. Your order inquiry has been received.');
             redirect(base_url('/order_success.php?order=' . urlencode($orderNumber)));
         } catch (Throwable $ex) {
@@ -222,6 +239,9 @@ require_once __DIR__ . '/inc/header.php';
                 <div class="field">
                     <label>Payment method</label>
                     <select name="payment_method" id="payMethod">
+                        <?php if (hitpay_enabled()): ?>
+                            <option value="hitpay">Pay online now &mdash; card / FPX / e-wallet (HitPay)</option>
+                        <?php endif; ?>
                         <option value="bank_transfer">Bank transfer (manual)</option>
                         <option value="cash_deposit">Cash deposit</option>
                         <?php if ($anyInstallment): ?>

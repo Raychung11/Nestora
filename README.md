@@ -93,8 +93,28 @@ mailer. Run `database/phase3.sql` (or re-run `install.php`) to add the
 pricing columns, `bundle_items` table and invoice/receipt fields to an
 existing database.
 
-Remaining Phase 3 (Billplz/FPX gateway, live WhatsApp AI integration,
-scent refill subscription) layers on without schema-breaking changes.
+HitPay online payment (Phase 4): "Pay online now" at checkout (card /
+FPX / e-wallet) via the HitPay v1 Payment Request API. The customer is
+redirected to HitPay's hosted checkout; a signed server-to-server webhook
+(`/hitpay_webhook.php`, HMAC-SHA256 with the account Salt, plus an API
+re-confirmation) marks the order paid and auto-issues/e-mails the
+receipt. Manual bank transfer stays available alongside it. Configure in
+Admin -> Settings -> "HitPay online payment": enable, mode
+(sandbox/live), currency, API key and Salt (API key/Salt are write-only
+secrets). Set the HitPay webhook URL to `<site>/hitpay_webhook.php`.
+Order-success and account pages expose a token-gated retry link
+(`/hitpay_pay.php`); customers land on `/payment_return.php` afterwards.
+Run `database/phase4.sql` (or re-run `install.php`) to add the
+`payment_gateway`/`payment_ref` columns, extend the payment-method enum
+and seed the HitPay settings.
+
+Webhook scheme note: this targets the classic HitPay v1 payment-request
+webhook (sorted key+value HMAC in the `hmac` field). Validate in Sandbox
+before going live; if HMAC check fails, payments still confirm manually
+in Admin -> Orders (safe fallback, never auto-paid without confirmation).
+
+Remaining Phase 3/4 (live WhatsApp AI integration, scent refill
+subscription) layers on without schema-breaking changes.
 
 ## Security
 

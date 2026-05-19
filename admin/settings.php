@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'smtp_host','smtp_port','smtp_secure','smtp_user','mail_from_name','mail_admin_to',
             'company_name','company_reg_no','company_address',
             'site_url','social_facebook','social_instagram','social_tiktok','social_youtube',
+            'hitpay_mode','hitpay_currency',
         ];
         $up = $pdo->prepare(
             'INSERT INTO site_settings (setting_key, setting_value) VALUES (:k,:v)
@@ -28,6 +29,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Email on/off toggle.
         $up->execute([':k' => 'mail_enabled', ':v' => isset($_POST['mail_enabled']) ? '1' : '0']);
+
+        // HitPay on/off toggle.
+        $up->execute([':k' => 'hitpay_enabled', ':v' => isset($_POST['hitpay_enabled']) ? '1' : '0']);
+
+        // HitPay API key & Salt: write-only secrets — only overwrite when a
+        // new value is supplied, so saving other settings never wipes them.
+        $hpKey = (string) ($_POST['hitpay_api_key'] ?? '');
+        if ($hpKey !== '') {
+            $up->execute([':k' => 'hitpay_api_key', ':v' => trim($hpKey)]);
+        }
+        $hpSalt = (string) ($_POST['hitpay_salt'] ?? '');
+        if ($hpSalt !== '') {
+            $up->execute([':k' => 'hitpay_salt', ':v' => trim($hpSalt)]);
+        }
 
         // SMTP password: only overwrite when a new value is supplied,
         // so saving other settings never wipes the stored password.
@@ -204,6 +219,36 @@ $s = fn(string $k, string $d='') => get_setting($k, $d);
     </div>
     <div class="field"><label>Account number</label><input type="text" name="bank_account_number" value="<?= e((string)$s('bank_account_number')) ?>"></div>
     <div class="field"><label>Payment instructions</label><textarea name="payment_instructions"><?= e((string)$s('payment_instructions')) ?></textarea></div>
+
+    <h3 style="margin:22px 0 12px">HitPay online payment</h3>
+    <div class="field">
+        <label><input type="checkbox" name="hitpay_enabled" value="1" <?= $s('hitpay_enabled','0')==='1'?'checked':'' ?>>
+            Enable "Pay online now" at checkout (card / FPX / e-wallet via HitPay)</label>
+    </div>
+    <div class="form-row">
+        <div class="field">
+            <label>Mode</label>
+            <select name="hitpay_mode">
+                <option value="sandbox" <?= $s('hitpay_mode','sandbox')==='sandbox'?'selected':'' ?>>Sandbox (testing)</option>
+                <option value="live" <?= $s('hitpay_mode','sandbox')==='live'?'selected':'' ?>>Live (real payments)</option>
+            </select>
+        </div>
+        <div class="field"><label>Currency</label><input type="text" name="hitpay_currency" value="<?= e((string)$s('hitpay_currency','MYR')) ?>" placeholder="MYR"></div>
+    </div>
+    <div class="field">
+        <label>API key</label>
+        <input type="password" name="hitpay_api_key" placeholder="<?= $s('hitpay_api_key') ? '•••••••• (saved — leave blank to keep)' : 'Paste your HitPay API key' ?>">
+    </div>
+    <div class="field">
+        <label>Salt (webhook signing secret)</label>
+        <input type="password" name="hitpay_salt" placeholder="<?= $s('hitpay_salt') ? '•••••••• (saved — leave blank to keep)' : 'Paste your HitPay Salt value' ?>">
+    </div>
+    <p class="muted" style="font-size:.8rem;margin:-4px 0 6px">
+        Find these in your HitPay dashboard under <strong>Payment Gateway &rarr; API Keys</strong>.
+        Use <strong>sandbox</strong> keys with Sandbox mode and <strong>live</strong> keys with Live mode.
+        Set the webhook URL in HitPay (or it is sent automatically per payment) to:
+        <code><?= e(rtrim((string)$s('site_url', site_origin()), '/') . base_url('/hitpay_webhook.php')) ?></code>
+    </p>
 
     <h3 style="margin:22px 0 12px">Email / SMTP (Hostinger)</h3>
     <div class="field">

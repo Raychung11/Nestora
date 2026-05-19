@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/inc/functions.php';
 require_once __DIR__ . '/inc/documents.php';
+require_once __DIR__ . '/inc/hitpay.php';
 
 $pageTitle = 'Order Received';
 $orderNumber = input('order');
@@ -34,7 +35,12 @@ require_once __DIR__ . '/inc/header.php';
                 <p class="muted">Your order inquiry has been received. Our Nestora team will reach out shortly.</p>
             <?php endif; ?>
             <?php if ($order): ?>
-                <a class="btn btn-primary btn-lg" href="<?= base_url('/payment.php?order=' . urlencode($order['order_number'])) ?>">Upload payment proof</a>
+                <?php if (hitpay_enabled() && $order['payment_status'] !== 'paid'): ?>
+                    <a class="btn btn-primary btn-lg" href="<?= e(base_url('/hitpay_pay.php?order=' . urlencode($order['order_number']) . '&k=' . document_token($order['order_number']))) ?>">Pay online now</a>
+                    <a class="btn btn-soft btn-lg" href="<?= base_url('/payment.php?order=' . urlencode($order['order_number'])) ?>">Upload payment proof</a>
+                <?php else: ?>
+                    <a class="btn btn-primary btn-lg" href="<?= base_url('/payment.php?order=' . urlencode($order['order_number'])) ?>">Upload payment proof</a>
+                <?php endif; ?>
                 <a class="btn btn-soft btn-lg" href="<?= e(base_url('/document.php?order=' . urlencode($order['order_number']) . '&type=invoice&k=' . document_token($order['order_number']))) ?>" target="_blank" rel="noopener">View invoice</a>
                 <?php if (!empty($order['receipt_number'])): ?>
                     <a class="btn btn-soft btn-lg" href="<?= e(base_url('/document.php?order=' . urlencode($order['order_number']) . '&type=receipt&k=' . document_token($order['order_number']))) ?>" target="_blank" rel="noopener">View receipt</a>
