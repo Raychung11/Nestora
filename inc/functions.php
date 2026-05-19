@@ -34,6 +34,24 @@ function base_url(string $path = ''): string
     return BASE_URL . $path;
 }
 
+/**
+ * Scheme + host for building absolute URLs (Open Graph, share links).
+ * Uses the admin-configured "Website URL" when set, otherwise derives
+ * it from the current request (proxy-aware).
+ */
+function site_origin(): string
+{
+    $configured = trim((string) get_setting('site_url', ''));
+    if ($configured !== '') {
+        return rtrim($configured, '/');
+    }
+    $https = (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off')
+        || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https'
+        || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443;
+    $host = $_SERVER['HTTP_HOST'] ?? 'nestora.my';
+    return ($https ? 'https' : 'http') . '://' . $host;
+}
+
 /* --------------------------------------------------------------------
  * CSRF protection (used on all admin POST forms + public forms)
  * ------------------------------------------------------------------ */

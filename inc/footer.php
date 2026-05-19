@@ -40,6 +40,21 @@
             <p class="footer-muted"><?= e(get_setting('contact_email', 'hello@nestora.my')) ?></p>
             <p class="footer-muted"><?= e(get_setting('contact_phone', '+60 12-345 6789')) ?></p>
             <a class="btn btn-soft" href="<?= whatsapp_url() ?>" target="_blank" rel="noopener">WhatsApp Us</a>
+            <?php
+                $socials = array_filter([
+                    'Facebook'  => trim((string) get_setting('social_facebook', '')),
+                    'Instagram' => trim((string) get_setting('social_instagram', '')),
+                    'TikTok'    => trim((string) get_setting('social_tiktok', '')),
+                    'YouTube'   => trim((string) get_setting('social_youtube', '')),
+                ]);
+            ?>
+            <?php if ($socials): ?>
+                <div class="footer-social">
+                    <?php foreach ($socials as $label => $url): ?>
+                        <a href="<?= e($url) ?>" target="_blank" rel="noopener noreferrer me"><?= e($label) ?></a>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
     <div class="container footer-bottom">

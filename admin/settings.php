@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'bank_name','bank_account_name','bank_account_number','payment_instructions',
             'smtp_host','smtp_port','smtp_secure','smtp_user','mail_from_name','mail_admin_to',
             'company_name','company_reg_no','company_address',
+            'site_url','social_facebook','social_instagram','social_tiktok','social_youtube',
         ];
         $up = $pdo->prepare(
             'INSERT INTO site_settings (setting_key, setting_value) VALUES (:k,:v)
@@ -48,6 +49,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $path = handle_image_upload($_FILES['ambassador_image'], UPLOAD_BRAND_DIR, 'ambassador');
                 if ($path) {
                     $up->execute([':k' => 'ambassador_image', ':v' => $path]);
+                }
+            } catch (Throwable $ex) {
+                set_flash('error', $ex->getMessage());
+                redirect(base_url('/admin/settings.php'));
+            }
+        }
+
+        // Share/Open Graph image: remove, or upload a new one.
+        if (input('remove_share_image') === '1') {
+            $cur = get_setting('share_image');
+            if ($cur) {
+                $abs = APP_ROOT . '/' . ltrim($cur, '/');
+                if (is_file($abs)) { @unlink($abs); }
+            }
+            $up->execute([':k' => 'share_image', ':v' => '']);
+        } elseif (!empty($_FILES['share_image']['name'])) {
+            try {
+                $path = handle_image_upload($_FILES['share_image'], UPLOAD_BRAND_DIR, 'share');
+                if ($path) {
+                    $up->execute([':k' => 'share_image', ':v' => $path]);
                 }
             } catch (Throwable $ex) {
                 set_flash('error', $ex->getMessage());
@@ -145,6 +166,36 @@ $s = fn(string $k, string $d='') => get_setting($k, $d);
     </div>
     <div class="field"><label>Registered address</label><textarea name="company_address" placeholder="Unit, street, postcode city, state, country"><?= e((string)$s('company_address')) ?></textarea></div>
     <p class="muted" style="font-size:.8rem;margin:-4px 0 14px">Shown in the website footer. Leave blank to hide a line.</p>
+
+    <h3 style="margin:22px 0 12px">Social media &amp; link sharing</h3>
+    <div class="field">
+        <label>Website URL</label>
+        <input type="text" name="site_url" value="<?= e((string)$s('site_url')) ?>" placeholder="https://nestora.my">
+        <p class="muted" style="font-size:.8rem;margin-top:6px">Used to build absolute share links. Leave blank to auto-detect from the request.</p>
+    </div>
+    <div class="field">
+        <label>Share / link preview image (shown on WhatsApp, Facebook, etc.)</label>
+        <?php $shareImg = (string) $s('share_image'); ?>
+        <?php if ($shareImg): ?>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px">
+                <img src="<?= e(base_url('/' . ltrim($shareImg, '/'))) ?>" alt="Share image"
+                     style="width:200px;height:105px;object-fit:cover;border-radius:12px;border:1px solid var(--line)">
+                <label class="muted" style="font-weight:400">
+                    <input type="checkbox" name="remove_share_image" value="1"> Remove current image
+                </label>
+            </div>
+        <?php endif; ?>
+        <input type="file" name="share_image" accept="image/jpeg,image/png,image/webp">
+        <p class="muted" style="font-size:.8rem;margin-top:6px">Recommended 1200&times;630 px (landscape). Falls back to the ambassador photo if not set.</p>
+    </div>
+    <div class="form-row">
+        <div class="field"><label>Facebook URL</label><input type="text" name="social_facebook" value="<?= e((string)$s('social_facebook')) ?>" placeholder="https://facebook.com/nestora"></div>
+        <div class="field"><label>Instagram URL</label><input type="text" name="social_instagram" value="<?= e((string)$s('social_instagram')) ?>" placeholder="https://instagram.com/nestora"></div>
+    </div>
+    <div class="form-row">
+        <div class="field"><label>TikTok URL</label><input type="text" name="social_tiktok" value="<?= e((string)$s('social_tiktok')) ?>" placeholder="https://tiktok.com/@nestora"></div>
+        <div class="field"><label>YouTube URL</label><input type="text" name="social_youtube" value="<?= e((string)$s('social_youtube')) ?>" placeholder="https://youtube.com/@nestora"></div>
+    </div>
 
     <h3 style="margin:22px 0 12px">Bank &amp; manual payment</h3>
     <div class="form-row">

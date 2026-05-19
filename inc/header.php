@@ -3,6 +3,11 @@ require_once dirname(__DIR__) . '/inc/customer_auth.php';
 
 $pageTitle = $pageTitle ?? get_setting('site_name', 'NESTORA');
 $pageDesc  = $pageDesc ?? get_setting('tagline', 'A Home That Takes Care of You');
+
+$ogSiteName = get_setting('site_name', 'NESTORA');
+$ogUrl      = site_origin() . ($_SERVER['REQUEST_URI'] ?? '/');
+$ogImgPath  = get_setting('share_image', '') ?: get_setting('ambassador_image', '');
+$ogImage    = $ogImgPath ? site_origin() . base_url('/' . ltrim($ogImgPath, '/')) : '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -11,6 +16,19 @@ $pageDesc  = $pageDesc ?? get_setting('tagline', 'A Home That Takes Care of You'
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="<?= e($pageDesc) ?>">
     <title><?= e($pageTitle) ?> &middot; NESTORA</title>
+
+    <meta property="og:site_name" content="<?= e($ogSiteName) ?>">
+    <meta property="og:title" content="<?= e($pageTitle) ?>">
+    <meta property="og:description" content="<?= e($pageDesc) ?>">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="<?= e($ogUrl) ?>">
+    <meta name="twitter:card" content="<?= $ogImage ? 'summary_large_image' : 'summary' ?>">
+    <meta name="twitter:title" content="<?= e($pageTitle) ?>">
+    <meta name="twitter:description" content="<?= e($pageDesc) ?>">
+    <?php if ($ogImage): ?>
+    <meta property="og:image" content="<?= e($ogImage) ?>">
+    <meta name="twitter:image" content="<?= e($ogImage) ?>">
+    <?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
