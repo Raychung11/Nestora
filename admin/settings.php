@@ -15,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'installment_public_text','delivery_public_text','ambassador_name','ambassador_text',
             'bank_name','bank_account_name','bank_account_number','payment_instructions',
             'smtp_host','smtp_port','smtp_secure','smtp_user','mail_from_name','mail_admin_to',
+            'company_name','company_reg_no','company_address',
         ];
         $up = $pdo->prepare(
             'INSERT INTO site_settings (setting_key, setting_value) VALUES (:k,:v)
@@ -136,6 +137,14 @@ $s = fn(string $k, string $d='') => get_setting($k, $d);
         <input type="file" name="ambassador_image" accept="image/jpeg,image/png,image/webp">
         <p class="muted" style="font-size:.8rem;margin-top:6px">Shown in the Brand Ambassador section on the homepage. Square images look best.</p>
     </div>
+
+    <h3 style="margin:22px 0 12px">Company details (footer)</h3>
+    <div class="form-row">
+        <div class="field"><label>Company name</label><input type="text" name="company_name" value="<?= e((string)$s('company_name')) ?>" placeholder="Nestora Sdn. Bhd."></div>
+        <div class="field"><label>Registration number</label><input type="text" name="company_reg_no" value="<?= e((string)$s('company_reg_no')) ?>" placeholder="202401234567 (1234567-A)"></div>
+    </div>
+    <div class="field"><label>Registered address</label><textarea name="company_address" placeholder="Unit, street, postcode city, state, country"><?= e((string)$s('company_address')) ?></textarea></div>
+    <p class="muted" style="font-size:.8rem;margin:-4px 0 14px">Shown in the website footer. Leave blank to hide a line.</p>
 
     <h3 style="margin:22px 0 12px">Bank &amp; manual payment</h3>
     <div class="form-row">

@@ -246,6 +246,9 @@ section{padding:72px 0}
 .site-footer a:hover{color:#fff}
 .footer-bottom{display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,.12);padding:20px 0;font-size:.82rem}
 .footer-bottom span{color:#b39f86}
+.footer-company{margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1)}
+.footer-company-name{color:#fff;font-size:.92rem;font-weight:600;margin-bottom:6px}
+.footer-company .footer-muted{margin-bottom:5px}
 
 /* ---- Cart / table ---- */
 .table{width:100%;border-collapse:collapse;background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm)}
