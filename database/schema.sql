@@ -106,11 +106,13 @@ CREATE TABLE IF NOT EXISTS products (
     material             VARCHAR(255)  NULL,            -- furniture
     dimensions           VARCHAR(255)  NULL,            -- furniture
     delivery_note        VARCHAR(255)  NULL,
-    price                DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    price                DECIMAL(10,2) NOT NULL DEFAULT 0.00,   -- selling price (customer pays)
+    base_price           DECIMAL(10,2) NULL,                     -- RRP / "worth" (struck-through when higher)
     promo_price          DECIMAL(10,2) NULL,
     installment_eligible TINYINT(1)    NOT NULL DEFAULT 0,
     max_installment_months ENUM('6','12','24') NOT NULL DEFAULT '24',
     supplier_cost        DECIMAL(10,2) NULL,            -- ADMIN ONLY - never public
+    cost_price           DECIMAL(10,2) NULL,            -- ADMIN ONLY - costing for margin
     supplier_id          INT UNSIGNED  NULL,
     stock_status         ENUM('available','preorder','checking','unavailable') NOT NULL DEFAULT 'available',
     is_featured          TINYINT(1)    NOT NULL DEFAULT 0,
@@ -145,6 +147,22 @@ CREATE TABLE IF NOT EXISTS product_images (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
+-- 5b. bundle_items  (a bundle is a product with product_type='bundle')
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS bundle_items (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    bundle_id  INT UNSIGNED NOT NULL,
+    product_id INT UNSIGNED NOT NULL,
+    quantity   INT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_bundle (bundle_id),
+    KEY idx_bundle_product (product_id),
+    CONSTRAINT fk_bundle_parent FOREIGN KEY (bundle_id)  REFERENCES products(id) ON DELETE CASCADE,
+    CONSTRAINT fk_bundle_child  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
 -- 7. orders
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS orders (
@@ -163,6 +181,10 @@ CREATE TABLE IF NOT EXISTS orders (
     supplier_status    ENUM('not_started','checking','confirmed','unavailable') NOT NULL DEFAULT 'not_started',
     delivery_status    ENUM('not_started','preparing','shipped','delivered') NOT NULL DEFAULT 'not_started',
     admin_notes        TEXT          NULL,
+    invoice_number     VARCHAR(40)   NULL,
+    invoice_issued_at  DATETIME      NULL,
+    receipt_number     VARCHAR(40)   NULL,
+    receipt_issued_at  DATETIME      NULL,
     created_at         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),

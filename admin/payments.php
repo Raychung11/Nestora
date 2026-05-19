@@ -1,6 +1,8 @@
 <?php
 $pageTitle = 'Payments';
 require_once __DIR__ . '/../inc/auth.php';
+require_once __DIR__ . '/../inc/documents.php';
+require_once __DIR__ . '/../inc/mailer.php';
 $admin = require_admin();
 $pdo = db();
 
@@ -25,7 +27,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      order_status = IF(order_status IN ('new','pending_confirmation','payment_pending'), 'paid', order_status)
                  WHERE id=:oid"
             )->execute([':oid' => $proof['order_id']]);
-            set_flash('success', 'Payment verified and order marked as paid.');
+
+            $oid = (int) $proof['order_id'];
+            ensure_invoice($pdo, $oid);   // safety: backfill if it was missing
+            ensure_receipt($pdo, $oid);
+
+            $oStmt = $pdo->prepare('SELECT * FROM orders WHERE id = :id');
+            $oStmt->execute([':id' => $oid]);
+            $ord = $oStmt->fetch();
+            if ($ord && !empty($ord['email'])) {
+                $receiptLink = document_link((string) $ord['order_number'], 'receipt');
+                send_mail((string) $ord['email'],
+                    'Payment received — receipt for ' . $ord['order_number'],
+                    mail_template('Payment received',
+                        '<p>Hi ' . e((string) $ord['customer_name']) . ', thank you. '
+                        . 'We have verified your payment for order <strong>'
+                        . e((string) $ord['order_number']) . '</strong>.</p>'
+                        . '<p><strong>Receipt:</strong> ' . e((string) $ord['receipt_number'])
+                        . '<br><a href="' . e($receiptLink) . '">View &amp; print your receipt</a></p>'
+                        . '<p>Total paid: <strong>' . money((float) $ord['total_amount']) . '</strong></p>'));
+            }
+
+            set_flash('success', 'Payment verified, receipt issued, order marked as paid.');
         } else {
             $pdo->prepare("UPDATE orders SET payment_status='failed' WHERE id=:oid")
                 ->execute([':oid' => $proof['order_id']]);

@@ -77,6 +77,22 @@ username = full mailbox email). The password is stored in site_settings
 or via the `NESTORA_SMTP_PASS` env var. Sending is best-effort and never
 blocks a customer action.
 
+Bundle packages & documents (Phase 3): a mix-and-match bundle builder
+(`admin/bundles.php` + `admin/bundle_form.php`) — pick products, set one
+bundle price; the "worth" (sum of selling prices) and bundle cost are
+auto-computed for the customer saving and your margin. A bundle is a
+`product_type='bundle'` product, so active bundles appear automatically
+in the Comfort Bundles catalog (`/products.php?type=bundle`) and buy
+through the normal cart/checkout. Products gained `base_price` (RRP,
+struck-through when higher) and `cost_price` (internal costing; margin
+shown in the product form). Invoices are issued automatically at
+checkout and receipts when payment is verified; both are branded
+print-to-PDF pages (`/document.php`) gated by an admin/owning-customer
+session or an unguessable signed token, and auto-emailed via the SMTP
+mailer. Run `database/phase3.sql` (or re-run `install.php`) to add the
+pricing columns, `bundle_items` table and invoice/receipt fields to an
+existing database.
+
 Remaining Phase 3 (Billplz/FPX gateway, live WhatsApp AI integration,
 scent refill subscription) layers on without schema-breaking changes.
 

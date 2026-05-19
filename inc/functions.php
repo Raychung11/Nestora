@@ -141,6 +141,35 @@ function effective_price(array $product): float
 }
 
 /**
+ * Reference ("was") price for strike-through display: the higher of the
+ * selling price and the base/RRP price. Compared against effective_price().
+ */
+function reference_price(array $product): float
+{
+    $ref = (float) $product['price'];
+    if (!empty($product['base_price']) && (float) $product['base_price'] > $ref) {
+        $ref = (float) $product['base_price'];
+    }
+    return $ref;
+}
+
+/**
+ * Component products of a bundle (product_type='bundle') with quantities.
+ */
+function bundle_components(int $bundleId): array
+{
+    $stmt = db()->prepare(
+        'SELECT bi.quantity, p.id, p.name, p.slug, p.sku, p.price, p.promo_price, p.cost_price
+         FROM bundle_items bi
+         JOIN products p ON p.id = bi.product_id
+         WHERE bi.bundle_id = :b
+         ORDER BY bi.id'
+    );
+    $stmt->execute([':b' => $bundleId]);
+    return $stmt->fetchAll();
+}
+
+/**
  * monthly_payment = product_price / months
  * (Optional processing fee reserved for future use.)
  */

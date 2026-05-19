@@ -24,6 +24,14 @@ $images = $imgStmt->fetchAll();
 $heroImg = product_image_url($images[0]['file_path'] ?? null);
 
 $eff       = effective_price($p);
+$was       = reference_price($p);
+$isBundle  = $p['product_type'] === 'bundle';
+$bundleItems = $isBundle ? bundle_components((int) $p['id']) : [];
+if ($bundleItems) {
+    $worth = 0.0;
+    foreach ($bundleItems as $bi) { $worth += effective_price($bi) * (int) $bi['quantity']; }
+    if ($worth > $was) { $was = $worth; }
+}
 $isOil     = $p['product_type'] === 'essential_oil' || $p['product_type'] === 'diffuser';
 $pageTitle = $p['name'];
 $pageDesc  = $p['short_description'] ?? '';
@@ -47,8 +55,25 @@ require_once __DIR__ . '/inc/header.php';
 
                 <div class="pd-price">
                     <span class="now"><?= money($eff) ?></span>
-                    <?php if ($eff < (float)$p['price']): ?><span class="was"><?= money((float)$p['price']) ?></span><?php endif; ?>
+                    <?php if ($was > $eff): ?><span class="was"><?= money($was) ?></span><?php endif; ?>
                 </div>
+                <?php if ($isBundle && $was > $eff): ?>
+                    <p style="color:var(--terracotta);font-weight:600;margin:-6px 0 6px">
+                        Bundle saving: <?= money($was - $eff) ?>
+                    </p>
+                <?php endif; ?>
+                <?php if ($isBundle && $bundleItems): ?>
+                    <div class="pd-meta" style="display:block">
+                        <dt style="font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">What's inside this bundle</dt>
+                        <ul style="margin:8px 0 0;padding-left:18px;color:var(--brown)">
+                            <?php foreach ($bundleItems as $bi): ?>
+                                <li style="margin:4px 0">
+                                    <?= e($bi['name']) ?> &times; <?= (int) $bi['quantity'] ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endif; ?>
 
                 <div>
                     <span class="badge badge-<?= e($p['stock_status']) ?>">

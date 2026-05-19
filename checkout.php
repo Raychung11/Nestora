@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/inc/customer_auth.php';
 require_once __DIR__ . '/inc/mailer.php';
+require_once __DIR__ . '/inc/documents.php';
 
 $pageTitle = 'Checkout';
 
@@ -142,6 +143,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->commit();
             $_SESSION['cart'] = [];
 
+            ensure_invoice($pdo, $orderId);
+            $invStmt = $pdo->prepare('SELECT invoice_number FROM orders WHERE id = :id');
+            $invStmt->execute([':id' => $orderId]);
+            $invoiceNo   = (string) $invStmt->fetchColumn();
+            $invoiceLink = document_link($orderNumber, 'invoice');
+            $docHtml = '<p><strong>Invoice:</strong> ' . e($invoiceNo)
+                . '<br><a href="' . e($invoiceLink) . '">View &amp; print your invoice</a></p>';
+
             $itemsHtml = '';
             foreach ($items as $it) {
                 $itemsHtml .= '<tr><td style="padding:6px 0">' . e($it['p']['name'])
@@ -160,14 +169,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             notify_admin(
                 'New order ' . $orderNumber,
-                mail_template('New order received', $summary),
+                mail_template('New order received', $summary . $docHtml),
                 $email ?: null
             );
             if ($email) {
                 send_mail($email, 'We have received your Nestora order ' . $orderNumber,
                     mail_template('Thank you for your order',
                         '<p>Hi ' . e($name) . ', we have received your order and our Nestora '
-                        . 'team will confirm the next steps with you personally.</p>' . $summary
+                        . 'team will confirm the next steps with you personally.</p>' . $summary . $docHtml
                         . '<p style="color:#8a7d6e;font-size:13px">'
                         . e(get_setting('delivery_public_text', 'Delivery timeline will be confirmed by our Nestora team after order confirmation.'))
                         . '</p>'));

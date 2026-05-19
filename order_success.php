@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/documents.php';
 
 $pageTitle = 'Order Received';
 $orderNumber = input('order');
@@ -34,6 +35,10 @@ require_once __DIR__ . '/inc/header.php';
             <?php endif; ?>
             <?php if ($order): ?>
                 <a class="btn btn-primary btn-lg" href="<?= base_url('/payment.php?order=' . urlencode($order['order_number'])) ?>">Upload payment proof</a>
+                <a class="btn btn-soft btn-lg" href="<?= e(base_url('/document.php?order=' . urlencode($order['order_number']) . '&type=invoice&k=' . document_token($order['order_number']))) ?>" target="_blank" rel="noopener">View invoice</a>
+                <?php if (!empty($order['receipt_number'])): ?>
+                    <a class="btn btn-soft btn-lg" href="<?= e(base_url('/document.php?order=' . urlencode($order['order_number']) . '&type=receipt&k=' . document_token($order['order_number']))) ?>" target="_blank" rel="noopener">View receipt</a>
+                <?php endif; ?>
                 <a class="btn btn-soft btn-lg" href="<?= whatsapp_url('Hi Nestora, I just placed order ' . $order['order_number'] . '. I would like to confirm the next steps.') ?>" target="_blank" rel="noopener">Confirm on WhatsApp</a>
             <?php else: ?>
                 <a class="btn btn-primary btn-lg" href="<?= whatsapp_url('Hi Nestora, I just placed an order. I would like to confirm the next steps.') ?>" target="_blank" rel="noopener">Confirm on WhatsApp</a>

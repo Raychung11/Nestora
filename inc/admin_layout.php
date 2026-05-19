@@ -22,6 +22,7 @@ $nav = [
     'whatsapp_leads.php'       => 'WhatsApp Leads',
     'installment_requests.php' => 'Installment Requests',
     'products.php'             => 'Products',
+    'bundles.php'              => 'Bundle Packages',
     'categories.php'           => 'Categories',
     'customers.php'            => 'Customers',
     'suppliers.php'            => 'Suppliers',
