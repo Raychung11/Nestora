@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/mailer.php';
 
 $pageTitle = 'Nestora AI Comfort Advisor';
 $pageDesc  = 'Tell us how you want your home to feel and we will guide you.';
@@ -76,6 +77,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':n' => $name, ':p' => $phone, ':a' => $area ?: null,
             ':i' => $interest ?: null, ':m' => $interestSummary . ' || ' . $recText,
         ]);
+
+        notify_admin('New AI Advisor lead', mail_template('New AI Advisor lead',
+            '<p><strong>Name:</strong> ' . e($name) . '<br>'
+            . '<strong>Phone:</strong> ' . e($phone) . '<br>'
+            . '<strong>Delivery area:</strong> ' . e($area ?: '-') . '</p>'
+            . '<p>' . e($interestSummary) . '<br>' . e($recText) . '</p>'));
 
         $waMessage = "Hi Nestora, this is {$name}. " .
             "I'd like a {$feeling} feeling for my {$room}. " .

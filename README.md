@@ -69,6 +69,14 @@ login / logout, a "My Account" page with order history, and checkout that
 prefills and links orders to the signed-in account (`customers.password_hash`
 was already in the schema, so no migration needed).
 
+Transactional email: a dependency-free SMTP mailer (`inc/mailer.php`)
+sends admin alerts and customer confirmations for contact, orders,
+payment proofs, quiz/advisor leads and installment requests. Configure
+SMTP in Admin -> Settings (Hostinger: smtp.hostinger.com, SSL 465,
+username = full mailbox email). The password is stored in site_settings
+or via the `NESTORA_SMTP_PASS` env var. Sending is best-effort and never
+blocks a customer action.
+
 Remaining Phase 3 (Billplz/FPX gateway, live WhatsApp AI integration,
 scent refill subscription) layers on without schema-breaking changes.
 

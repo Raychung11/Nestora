@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/mailer.php';
 
 $pageTitle = 'Upload Payment';
 $pageDesc  = 'Upload your payment proof so our Nestora team can confirm your order.';
@@ -64,6 +65,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      order_status = IF(order_status IN ('new','pending_confirmation'), 'payment_pending', order_status)
                  WHERE id = :id"
             )->execute([':id' => $order['id']]);
+
+            $proofHtml = '<p><strong>Order:</strong> ' . e($order['order_number']) . '<br>'
+                . '<strong>Customer:</strong> ' . e($order['customer_name']) . '<br>'
+                . '<strong>Method:</strong> ' . e(label($method)) . '<br>'
+                . '<strong>Amount:</strong> ' . money($amount)
+                . ($reference ? '<br><strong>Reference:</strong> ' . e($reference) : '') . '</p>';
+            notify_admin('Payment proof for ' . $order['order_number'],
+                mail_template('Payment proof submitted', $proofHtml
+                    . '<p>Review and verify it in Admin &rarr; Payments.</p>'),
+                $order['email'] ?: null);
+            if (!empty($order['email'])) {
+                send_mail($order['email'], 'We have received your payment proof (' . $order['order_number'] . ')',
+                    mail_template('Payment proof received',
+                        '<p>Hi ' . e($order['customer_name']) . ', thank you. We have received your '
+                        . 'payment proof and our team will verify it and confirm your order shortly.</p>'
+                        . $proofHtml));
+            }
 
             $done = true;
         } catch (Throwable $ex) {

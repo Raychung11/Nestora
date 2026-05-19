@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/mailer.php';
 
 $pageTitle = 'Apply for a Monthly Comfort Plan';
 $pageDesc  = 'Bring comfort home today, pay comfortably over time.';
@@ -52,6 +53,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':sum' => $product['name'], ':tot' => $total,
             ':m' => (string) $months, ':mp' => $monthly,
         ]);
+        $planHtml = '<p><strong>Name:</strong> ' . e($name) . '<br>'
+            . '<strong>Phone:</strong> ' . e($phone)
+            . ($email ? '<br><strong>Email:</strong> ' . e($email) : '')
+            . '<br><strong>Product:</strong> ' . e($product['name'])
+            . '<br><strong>Plan:</strong> ' . (int) $months . ' months &mdash; '
+            . money($monthly) . '/month (total ' . money($total) . ')</p>';
+        notify_admin('New installment request',
+            mail_template('New installment request', $planHtml
+                . '<p>Review it in Admin &rarr; Installment Requests.</p>'),
+            $email ?: null);
+        if ($email) {
+            send_mail($email, 'Your Nestora monthly comfort plan request',
+                mail_template('Plan request received',
+                    '<p>Hi ' . e($name) . ', thank you. Your monthly comfort plan request '
+                    . 'is being reviewed by our Nestora team.</p>' . $planHtml));
+        }
+
         $done = true;
         $confirm = ['name' => $name, 'product' => $product['name'], 'months' => $months,
                     'monthly' => $monthly, 'total' => $total];

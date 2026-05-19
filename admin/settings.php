@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'whatsapp_number','whatsapp_default_message','contact_email','contact_phone',
             'installment_public_text','delivery_public_text','ambassador_name','ambassador_text',
             'bank_name','bank_account_name','bank_account_number','payment_instructions',
+            'smtp_host','smtp_port','smtp_secure','smtp_user','mail_from_name','mail_admin_to',
         ];
         $up = $pdo->prepare(
             'INSERT INTO site_settings (setting_key, setting_value) VALUES (:k,:v)
@@ -21,6 +22,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         foreach ($keys as $k) {
             $up->execute([':k' => $k, ':v' => input($k)]);
+        }
+
+        // Email on/off toggle.
+        $up->execute([':k' => 'mail_enabled', ':v' => isset($_POST['mail_enabled']) ? '1' : '0']);
+
+        // SMTP password: only overwrite when a new value is supplied,
+        // so saving other settings never wipes the stored password.
+        $smtpPass = (string) ($_POST['smtp_pass'] ?? '');
+        if ($smtpPass !== '') {
+            $up->execute([':k' => 'smtp_pass', ':v' => $smtpPass]);
         }
 
         // Ambassador image: remove, or upload a new one.
@@ -133,6 +144,39 @@ $s = fn(string $k, string $d='') => get_setting($k, $d);
     </div>
     <div class="field"><label>Account number</label><input type="text" name="bank_account_number" value="<?= e((string)$s('bank_account_number')) ?>"></div>
     <div class="field"><label>Payment instructions</label><textarea name="payment_instructions"><?= e((string)$s('payment_instructions')) ?></textarea></div>
+
+    <h3 style="margin:22px 0 12px">Email / SMTP (Hostinger)</h3>
+    <div class="field">
+        <label><input type="checkbox" name="mail_enabled" value="1" <?= $s('mail_enabled','0')==='1'?'checked':'' ?>>
+            Enable sending email (admin alerts &amp; customer confirmations)</label>
+    </div>
+    <div class="form-row">
+        <div class="field"><label>SMTP host</label><input type="text" name="smtp_host" value="<?= e((string)$s('smtp_host','smtp.hostinger.com')) ?>"></div>
+        <div class="field"><label>SMTP port</label><input type="text" name="smtp_port" value="<?= e((string)$s('smtp_port','465')) ?>"></div>
+    </div>
+    <div class="form-row">
+        <div class="field">
+            <label>Security</label>
+            <select name="smtp_secure">
+                <option value="ssl" <?= $s('smtp_secure','ssl')==='ssl'?'selected':'' ?>>SSL (port 465)</option>
+                <option value="tls" <?= $s('smtp_secure','ssl')==='tls'?'selected':'' ?>>STARTTLS (port 587)</option>
+            </select>
+        </div>
+        <div class="field"><label>SMTP username (full email)</label><input type="text" name="smtp_user" value="<?= e((string)$s('smtp_user','hello@nestora.my')) ?>"></div>
+    </div>
+    <div class="field">
+        <label>SMTP password (mailbox password)</label>
+        <input type="password" name="smtp_pass" placeholder="<?= $s('smtp_pass') ? '•••••••• (saved — leave blank to keep)' : 'Enter mailbox password' ?>">
+    </div>
+    <div class="form-row">
+        <div class="field"><label>From name</label><input type="text" name="mail_from_name" value="<?= e((string)$s('mail_from_name','NESTORA')) ?>"></div>
+        <div class="field"><label>Admin alerts go to</label><input type="text" name="mail_admin_to" value="<?= e((string)$s('mail_admin_to', (string)$s('contact_email','hello@nestora.my'))) ?>"></div>
+    </div>
+    <p class="muted" style="font-size:.8rem;margin:-4px 0 14px">
+        Hostinger: host <strong>smtp.hostinger.com</strong>, SSL port <strong>465</strong>,
+        username = full email <strong>hello@nestora.my</strong>, password = that mailbox's password.
+        Sender stays hello@nestora.my so it passes your domain SPF.
+    </p>
 
     <button class="btn btn-primary btn-block" type="submit">Save settings</button>
 </form>

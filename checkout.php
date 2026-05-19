@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/inc/customer_auth.php';
+require_once __DIR__ . '/inc/mailer.php';
 
 $pageTitle = 'Checkout';
 
@@ -140,6 +141,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
             $_SESSION['cart'] = [];
+
+            $itemsHtml = '';
+            foreach ($items as $it) {
+                $itemsHtml .= '<tr><td style="padding:6px 0">' . e($it['p']['name'])
+                    . ' &times; ' . (int) $it['qty'] . '</td><td style="padding:6px 0;text-align:right">'
+                    . money($it['price'] * $it['qty']) . '</td></tr>';
+            }
+            $summary = '<p><strong>Order:</strong> ' . e($orderNumber) . '<br>'
+                . '<strong>Name:</strong> ' . e($name) . '<br>'
+                . '<strong>Phone:</strong> ' . e($phone)
+                . ($email ? '<br><strong>Email:</strong> ' . e($email) : '')
+                . '<br><strong>Address:</strong> ' . nl2br(e($address)) . '</p>'
+                . '<table style="width:100%;border-collapse:collapse">' . $itemsHtml
+                . '<tr><td style="padding:8px 0;border-top:1px solid #e3d6c4"><strong>Total</strong></td>'
+                . '<td style="padding:8px 0;border-top:1px solid #e3d6c4;text-align:right"><strong>'
+                . money($total) . '</strong></td></tr></table>';
+
+            notify_admin(
+                'New order ' . $orderNumber,
+                mail_template('New order received', $summary),
+                $email ?: null
+            );
+            if ($email) {
+                send_mail($email, 'We have received your Nestora order ' . $orderNumber,
+                    mail_template('Thank you for your order',
+                        '<p>Hi ' . e($name) . ', we have received your order and our Nestora '
+                        . 'team will confirm the next steps with you personally.</p>' . $summary
+                        . '<p style="color:#8a7d6e;font-size:13px">'
+                        . e(get_setting('delivery_public_text', 'Delivery timeline will be confirmed by our Nestora team after order confirmation.'))
+                        . '</p>'));
+            }
+
             set_flash('success', 'Thank you. Your order inquiry has been received.');
             redirect(base_url('/order_success.php?order=' . urlencode($orderNumber)));
         } catch (Throwable $ex) {
