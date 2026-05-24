@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/inc/functions.php';
 require_once __DIR__ . '/inc/inventory.php';
+require_once __DIR__ . '/inc/subscriptions.php';
 
 $slug = input('slug');
 $stmt = db()->prepare("SELECT * FROM products WHERE slug = :s AND status='active' LIMIT 1");
@@ -116,6 +117,27 @@ require_once __DIR__ . '/inc/header.php';
                         <?php if ($p['dimensions']): ?><div><dt>Size</dt><dd><?= e($p['dimensions']) ?></dd></div><?php endif; ?>
                         <div><dt>Estimated delivery</dt><dd><?= e($p['delivery_note'] ?: get_setting('delivery_public_text', 'Delivery timeline will be confirmed by our Nestora team after order confirmation.')) ?></dd></div>
                     </dl>
+                <?php endif; ?>
+
+                <?php if (subscriptions_enabled() && $p['product_type'] === 'essential_oil'):
+                    $subPrice = subscriber_price($p);
+                    $subPct   = subscription_discount_percent(); ?>
+                    <div class="pd-inst" style="border-color:var(--terracotta)">
+                        <strong>Subscribe &amp; save<?= $subPct > 0 ? ' ' . rtrim(rtrim(number_format($subPct, 2), '0'), '.') . '%' : '' ?></strong>
+                        &mdash; fresh refills delivered on your schedule.<br>
+                        <span class="muted"><?= e(get_setting('subscription_public_text', 'Never run out of your favourite scent. Pause or cancel anytime.')) ?></span>
+                        <form method="post" action="<?= base_url('/subscribe.php') ?>" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
+                            <select name="frequency">
+                                <?php foreach (subscription_frequencies() as $key => $f): ?>
+                                    <option value="<?= e($key) ?>"><?= e($f['label']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="number" name="quantity" value="1" min="1" max="12" style="width:70px" aria-label="Quantity per refill">
+                            <button class="btn btn-primary" type="submit">Subscribe &mdash; <?= money($subPrice) ?>/refill</button>
+                        </form>
+                    </div>
                 <?php endif; ?>
 
                 <?php $soldOut = !inventory_in_stock($p, 1); $remaining = inventory_remaining($p); ?>

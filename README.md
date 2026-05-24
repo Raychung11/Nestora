@@ -138,8 +138,22 @@ Run `database/phase5.sql` (or re-run `install.php`) to add the voucher /
 inventory / notification columns and the `vouchers` + `login_attempts`
 tables to an existing database.
 
-Remaining (live WhatsApp AI integration, scent refill subscription)
-layers on without schema-breaking changes.
+Scent refill subscriptions (Phase 6): a schedule-based recurring model
+(no stored cards). A customer subscribes to an essential oil at a chosen
+frequency (monthly / 2-monthly / 3-monthly) at a subscriber discount;
+each cycle generates a normal order + invoice and emails a pay link, so
+it reuses the existing HitPay / bank-transfer flows. Customers manage
+(pause / resume / change schedule / cancel) from My Account; admins see
+all subscriptions, can generate a refill manually, and a daily cron
+(`cron_subscriptions.php`, key-protected for the URL form) auto-generates
+due refills. Configure in Admin -> Settings (enable, discount %, public
+text); manage in Admin -> Scent Subscriptions. Files: `inc/subscriptions.php`,
+`subscribe.php`, `admin/subscriptions.php`. Run `database/phase6.sql`
+(or re-run `install.php`) to add the `subscriptions` table,
+`orders.subscription_id` and the related settings.
+
+Remaining (live WhatsApp AI integration, true card-on-file recurring
+billing) layers on without schema-breaking changes.
 
 ## Security
 

@@ -166,6 +166,35 @@ CREATE TABLE IF NOT EXISTS bundle_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
+-- 6b. subscriptions  (scent refill — schedule-based recurring orders)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    customer_id       INT UNSIGNED NOT NULL,
+    product_id        INT UNSIGNED NULL,
+    product_name      VARCHAR(190) NOT NULL,
+    sku               VARCHAR(80)  NULL,
+    quantity          INT NOT NULL DEFAULT 1,
+    frequency         ENUM('monthly','bimonthly','quarterly') NOT NULL DEFAULT 'monthly',
+    unit_price        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    customer_name     VARCHAR(150) NOT NULL,
+    phone             VARCHAR(40)  NULL,
+    email             VARCHAR(190) NULL,
+    address           TEXT         NULL,
+    status            ENUM('active','paused','cancelled') NOT NULL DEFAULT 'active',
+    next_renewal_date DATE         NULL,
+    last_order_id     INT UNSIGNED NULL,
+    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_sub_customer (customer_id),
+    KEY idx_sub_status (status),
+    KEY idx_sub_due (status, next_renewal_date),
+    CONSTRAINT fk_sub_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+    CONSTRAINT fk_sub_product  FOREIGN KEY (product_id)  REFERENCES products(id)  ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
 -- 7. orders
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS orders (
@@ -180,6 +209,7 @@ CREATE TABLE IF NOT EXISTS orders (
     subtotal_amount    DECIMAL(10,2) NULL,
     discount_amount    DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     voucher_code       VARCHAR(40)   NULL,
+    subscription_id    INT UNSIGNED  NULL,
     stock_decremented  TINYINT(1)    NOT NULL DEFAULT 0,
     last_status_notified VARCHAR(40) NULL,
     payment_method     ENUM('bank_transfer','fpx','installment','cash_deposit','hitpay') NOT NULL DEFAULT 'bank_transfer',

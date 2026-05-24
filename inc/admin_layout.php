@@ -21,6 +21,7 @@ $nav = [
     'quiz_leads.php'           => 'Comfort Quiz Leads',
     'whatsapp_leads.php'       => 'WhatsApp Leads',
     'installment_requests.php' => 'Installment Requests',
+    'subscriptions.php'        => 'Scent Subscriptions',
     'products.php'             => 'Products',
     'bundles.php'              => 'Bundle Packages',
     'vouchers.php'             => 'Voucher Codes',

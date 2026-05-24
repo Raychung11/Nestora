@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'company_name','company_reg_no','company_address',
             'site_url','social_facebook','social_instagram','social_tiktok','social_youtube',
             'hitpay_mode','hitpay_currency',
+            'subscription_discount_percent','subscription_public_text',
         ];
         $up = $pdo->prepare(
             'INSERT INTO site_settings (setting_key, setting_value) VALUES (:k,:v)
@@ -32,6 +33,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // HitPay on/off toggle.
         $up->execute([':k' => 'hitpay_enabled', ':v' => isset($_POST['hitpay_enabled']) ? '1' : '0']);
+
+        // Subscriptions on/off toggle + ensure a cron key exists.
+        $up->execute([':k' => 'subscriptions_enabled', ':v' => isset($_POST['subscriptions_enabled']) ? '1' : '0']);
+        if (trim((string) get_setting('cron_key', '')) === '') {
+            $up->execute([':k' => 'cron_key', ':v' => bin2hex(random_bytes(16))]);
+        }
 
         // HitPay API key & Salt: write-only secrets — only overwrite when a
         // new value is supplied, so saving other settings never wipes them.
@@ -248,6 +255,24 @@ $s = fn(string $k, string $d='') => get_setting($k, $d);
         Use <strong>sandbox</strong> keys with Sandbox mode and <strong>live</strong> keys with Live mode.
         Set the webhook URL in HitPay (or it is sent automatically per payment) to:
         <code><?= e(rtrim((string)$s('site_url', site_origin()), '/') . base_url('/hitpay_webhook.php')) ?></code>
+    </p>
+
+    <h3 style="margin:22px 0 12px">Scent refill subscriptions</h3>
+    <div class="field">
+        <label><input type="checkbox" name="subscriptions_enabled" value="1" <?= $s('subscriptions_enabled','0')==='1'?'checked':'' ?>>
+            Enable "Subscribe &amp; save" on essential oil products</label>
+    </div>
+    <div class="form-row">
+        <div class="field"><label>Subscriber discount (%)</label><input type="number" step="0.01" min="0" max="90" name="subscription_discount_percent" value="<?= e((string)$s('subscription_discount_percent','10')) ?>"></div>
+        <div class="field"></div>
+    </div>
+    <div class="field"><label>Subscription public text</label><textarea name="subscription_public_text"><?= e((string)$s('subscription_public_text','Never run out of your favourite scent. Subscribe and we will deliver a fresh refill on your schedule — pause or cancel anytime.')) ?></textarea></div>
+    <?php $cronKey = (string) $s('cron_key', ''); ?>
+    <p class="muted" style="font-size:.8rem;margin:-4px 0 6px">
+        Refills are generated automatically by a daily cron. After saving (which creates a key),
+        set up this cron in Hostinger to run once a day:<br>
+        <code>php <?= e(APP_ROOT) ?>/cron_subscriptions.php</code><br>
+        or via URL: <code><?= e(rtrim((string)$s('site_url', site_origin()), '/') . base_url('/cron_subscriptions.php') . '?key=' . ($cronKey ?: 'SAVE_TO_GENERATE')) ?></code>
     </p>
 
     <h3 style="margin:22px 0 12px">Email / SMTP (Hostinger)</h3>

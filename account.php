@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/inc/customer_auth.php';
 require_once __DIR__ . '/inc/documents.php';
+require_once __DIR__ . '/inc/subscriptions.php';
 
 $pageTitle = 'My Account';
 $session   = require_customer();
@@ -13,6 +14,38 @@ $customer = $cStmt->fetch();
 if (!$customer) {
     customer_logout();
     redirect(base_url('/login.php'));
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && input('action') === 'subscription') {
+    require_csrf();
+    $subId = (int) input('subscription_id');
+    $op    = input('op');
+    $own   = $pdo->prepare('SELECT * FROM subscriptions WHERE id = :id AND customer_id = :cid LIMIT 1');
+    $own->execute([':id' => $subId, ':cid' => $customer['id']]);
+    $sub = $own->fetch();
+
+    if (!$sub) {
+        set_flash('error', 'Subscription not found.');
+    } elseif ($op === 'pause' && $sub['status'] === 'active') {
+        $pdo->prepare("UPDATE subscriptions SET status='paused' WHERE id=:id")->execute([':id' => $subId]);
+        set_flash('success', 'Subscription paused. Resume anytime.');
+    } elseif ($op === 'resume' && $sub['status'] === 'paused') {
+        $next = subscription_next_date((string) $sub['frequency']);
+        $pdo->prepare("UPDATE subscriptions SET status='active', next_renewal_date=:n WHERE id=:id")
+            ->execute([':n' => $next, ':id' => $subId]);
+        set_flash('success', 'Subscription resumed. Next refill on ' . date('d M Y', strtotime($next)) . '.');
+    } elseif ($op === 'cancel' && $sub['status'] !== 'cancelled') {
+        $pdo->prepare("UPDATE subscriptions SET status='cancelled' WHERE id=:id")->execute([':id' => $subId]);
+        set_flash('info', 'Subscription cancelled.');
+    } elseif ($op === 'frequency') {
+        $freq = input('frequency');
+        if (array_key_exists($freq, subscription_frequencies())) {
+            $pdo->prepare("UPDATE subscriptions SET frequency=:f, next_renewal_date=:n WHERE id=:id")
+                ->execute([':f' => $freq, ':n' => subscription_next_date($freq), ':id' => $subId]);
+            set_flash('success', 'Delivery schedule updated.');
+        }
+    }
+    redirect(base_url('/account.php'));
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -39,6 +72,14 @@ $oStmt = $pdo->prepare(
 );
 $oStmt->execute([':id' => $customer['id'], ':email' => $customer['email']]);
 $orders = $oStmt->fetchAll();
+
+$subStmt = $pdo->prepare(
+    "SELECT * FROM subscriptions
+     WHERE customer_id = :id AND status <> 'cancelled'
+     ORDER BY status ASC, next_renewal_date ASC"
+);
+$subStmt->execute([':id' => $customer['id']]);
+$subscriptions = $subStmt->fetchAll();
 
 require_once __DIR__ . '/inc/header.php';
 ?>
@@ -100,4 +141,70 @@ require_once __DIR__ . '/inc/header.php';
         </div>
     </div>
 </section>
+<?php if ($subscriptions || subscriptions_enabled()): ?>
+<section style="padding-top:0">
+    <div class="container">
+        <div class="form-card" style="margin:0;max-width:none">
+            <h3 style="margin-bottom:16px">Scent refill subscriptions</h3>
+            <?php if (!$subscriptions): ?>
+                <p class="muted">You have no active subscriptions.
+                    <a href="<?= base_url('/products.php?type=essential_oil') ?>" style="color:var(--terracotta)">Subscribe &amp; save on your favourite scent &rarr;</a></p>
+            <?php else: ?>
+                <table class="table">
+                    <thead><tr><th>Scent</th><th>Schedule</th><th>Per refill</th><th>Next refill</th><th>Status</th><th>Manage</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($subscriptions as $sub): ?>
+                        <tr>
+                            <td><strong><?= e($sub['product_name']) ?></strong> &times; <?= (int)$sub['quantity'] ?></td>
+                            <td>
+                                <form method="post" style="display:flex;gap:6px;align-items:center">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="action" value="subscription">
+                                    <input type="hidden" name="op" value="frequency">
+                                    <input type="hidden" name="subscription_id" value="<?= (int)$sub['id'] ?>">
+                                    <select name="frequency" onchange="this.form.submit()">
+                                        <?php foreach (subscription_frequencies() as $key => $f): ?>
+                                            <option value="<?= e($key) ?>" <?= $sub['frequency']===$key?'selected':'' ?>><?= e($f['label']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <noscript><button class="btn btn-soft btn-sm" type="submit">Set</button></noscript>
+                                </form>
+                            </td>
+                            <td><?= money((float)$sub['unit_price']) ?></td>
+                            <td class="muted"><?= $sub['next_renewal_date'] ? e(date('d M Y', strtotime($sub['next_renewal_date']))) : '—' ?></td>
+                            <td><span class="tag"><?= e(label($sub['status'])) ?></span></td>
+                            <td>
+                                <div class="actions-inline">
+                                    <?php if ($sub['status'] === 'active'): ?>
+                                        <form method="post"><?= csrf_field() ?>
+                                            <input type="hidden" name="action" value="subscription">
+                                            <input type="hidden" name="op" value="pause">
+                                            <input type="hidden" name="subscription_id" value="<?= (int)$sub['id'] ?>">
+                                            <button class="btn btn-soft btn-sm" type="submit">Pause</button>
+                                        </form>
+                                    <?php else: ?>
+                                        <form method="post"><?= csrf_field() ?>
+                                            <input type="hidden" name="action" value="subscription">
+                                            <input type="hidden" name="op" value="resume">
+                                            <input type="hidden" name="subscription_id" value="<?= (int)$sub['id'] ?>">
+                                            <button class="btn btn-soft btn-sm" type="submit">Resume</button>
+                                        </form>
+                                    <?php endif; ?>
+                                    <form method="post" data-confirm="Cancel this subscription?"><?= csrf_field() ?>
+                                        <input type="hidden" name="action" value="subscription">
+                                        <input type="hidden" name="op" value="cancel">
+                                        <input type="hidden" name="subscription_id" value="<?= (int)$sub['id'] ?>">
+                                        <button class="btn btn-danger btn-sm" type="submit">Cancel</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
 <?php require_once __DIR__ . '/inc/footer.php'; ?>
