@@ -13,6 +13,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'site_name','tagline','hero_headline','hero_subtext',
             'whatsapp_number','whatsapp_default_message','contact_email','contact_phone',
             'installment_public_text','delivery_public_text','ambassador_name','ambassador_text',
+            'bank_name','bank_account_name','bank_account_number','payment_instructions',
+            'smtp_host','smtp_port','smtp_secure','smtp_user','mail_from_name','mail_admin_to',
+            'company_name','company_reg_no','company_address',
+            'site_url','social_facebook','social_instagram','social_tiktok','social_youtube',
+            'hitpay_mode','hitpay_currency',
+            'subscription_discount_percent','subscription_public_text',
         ];
         $up = $pdo->prepare(
             'INSERT INTO site_settings (setting_key, setting_value) VALUES (:k,:v)
@@ -21,6 +27,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($keys as $k) {
             $up->execute([':k' => $k, ':v' => input($k)]);
         }
+
+        // Email on/off toggle.
+        $up->execute([':k' => 'mail_enabled', ':v' => isset($_POST['mail_enabled']) ? '1' : '0']);
+
+        // HitPay on/off toggle.
+        $up->execute([':k' => 'hitpay_enabled', ':v' => isset($_POST['hitpay_enabled']) ? '1' : '0']);
+
+        // Subscriptions on/off toggle + ensure a cron key exists.
+        $up->execute([':k' => 'subscriptions_enabled', ':v' => isset($_POST['subscriptions_enabled']) ? '1' : '0']);
+        if (trim((string) get_setting('cron_key', '')) === '') {
+            $up->execute([':k' => 'cron_key', ':v' => bin2hex(random_bytes(16))]);
+        }
+
+        // HitPay API key & Salt: write-only secrets — only overwrite when a
+        // new value is supplied, so saving other settings never wipes them.
+        $hpKey = (string) ($_POST['hitpay_api_key'] ?? '');
+        if ($hpKey !== '') {
+            $up->execute([':k' => 'hitpay_api_key', ':v' => trim($hpKey)]);
+        }
+        $hpSalt = (string) ($_POST['hitpay_salt'] ?? '');
+        if ($hpSalt !== '') {
+            $up->execute([':k' => 'hitpay_salt', ':v' => trim($hpSalt)]);
+        }
+
+        // SMTP password: only overwrite when a new value is supplied,
+        // so saving other settings never wipes the stored password.
+        $smtpPass = (string) ($_POST['smtp_pass'] ?? '');
+        if ($smtpPass !== '') {
+            $up->execute([':k' => 'smtp_pass', ':v' => $smtpPass]);
+        }
+
+        // Ambassador image: remove, or upload a new one.
+        if (input('remove_ambassador_image') === '1') {
+            $cur = get_setting('ambassador_image');
+            if ($cur) {
+                $abs = APP_ROOT . '/' . ltrim($cur, '/');
+                if (is_file($abs)) { @unlink($abs); }
+            }
+            $up->execute([':k' => 'ambassador_image', ':v' => '']);
+        } elseif (!empty($_FILES['ambassador_image']['name'])) {
+            try {
+                $path = handle_image_upload($_FILES['ambassador_image'], UPLOAD_BRAND_DIR, 'ambassador');
+                if ($path) {
+                    $up->execute([':k' => 'ambassador_image', ':v' => $path]);
+                }
+            } catch (Throwable $ex) {
+                set_flash('error', $ex->getMessage());
+                redirect(base_url('/admin/settings.php'));
+            }
+        }
+
+        // Share/Open Graph image: remove, or upload a new one.
+        if (input('remove_share_image') === '1') {
+            $cur = get_setting('share_image');
+            if ($cur) {
+                $abs = APP_ROOT . '/' . ltrim($cur, '/');
+                if (is_file($abs)) { @unlink($abs); }
+            }
+            $up->execute([':k' => 'share_image', ':v' => '']);
+        } elseif (!empty($_FILES['share_image']['name'])) {
+            try {
+                $path = handle_image_upload($_FILES['share_image'], UPLOAD_BRAND_DIR, 'share');
+                if ($path) {
+                    $up->execute([':k' => 'share_image', ':v' => $path]);
+                }
+            } catch (Throwable $ex) {
+                set_flash('error', $ex->getMessage());
+                redirect(base_url('/admin/settings.php'));
+            }
+        }
+
         set_flash('success', 'Settings saved.');
 
     } elseif ($action === 'add_admin') {
@@ -64,7 +141,7 @@ require_once __DIR__ . '/../inc/admin_layout.php';
 
 $s = fn(string $k, string $d='') => get_setting($k, $d);
 ?>
-<form class="panel" method="post" style="max-width:760px">
+<form class="panel" method="post" enctype="multipart/form-data" style="max-width:760px">
     <?= csrf_field() ?>
     <input type="hidden" name="action" value="save_settings">
     <h2>Site &amp; homepage content</h2>
@@ -88,6 +165,149 @@ $s = fn(string $k, string $d='') => get_setting($k, $d);
         <div class="field"><label>Ambassador name</label><input type="text" name="ambassador_name" value="<?= e((string)$s('ambassador_name')) ?>"></div>
         <div class="field"><label>Ambassador text</label><input type="text" name="ambassador_text" value="<?= e((string)$s('ambassador_text')) ?>"></div>
     </div>
+    <div class="field">
+        <label>Ambassador photo (JPG, PNG or WEBP)</label>
+        <?php $ambImg = (string) $s('ambassador_image'); ?>
+        <?php if ($ambImg): ?>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px">
+                <img src="<?= e(base_url('/' . ltrim($ambImg, '/'))) ?>" alt="Ambassador"
+                     style="width:110px;height:110px;object-fit:cover;border-radius:14px;border:1px solid var(--line)">
+                <label class="muted" style="font-weight:400">
+                    <input type="checkbox" name="remove_ambassador_image" value="1"> Remove current photo
+                </label>
+            </div>
+        <?php endif; ?>
+        <input type="file" name="ambassador_image" accept="image/jpeg,image/png,image/webp">
+        <p class="muted" style="font-size:.8rem;margin-top:6px">Shown in the Brand Ambassador section on the homepage. Square images look best.</p>
+    </div>
+
+    <h3 style="margin:22px 0 12px">Company details (footer)</h3>
+    <div class="form-row">
+        <div class="field"><label>Company name</label><input type="text" name="company_name" value="<?= e((string)$s('company_name')) ?>" placeholder="Nestora Sdn. Bhd."></div>
+        <div class="field"><label>Registration number</label><input type="text" name="company_reg_no" value="<?= e((string)$s('company_reg_no')) ?>" placeholder="202401234567 (1234567-A)"></div>
+    </div>
+    <div class="field"><label>Registered address</label><textarea name="company_address" placeholder="Unit, street, postcode city, state, country"><?= e((string)$s('company_address')) ?></textarea></div>
+    <p class="muted" style="font-size:.8rem;margin:-4px 0 14px">Shown in the website footer. Leave blank to hide a line.</p>
+
+    <h3 style="margin:22px 0 12px">Social media &amp; link sharing</h3>
+    <div class="field">
+        <label>Website URL</label>
+        <input type="text" name="site_url" value="<?= e((string)$s('site_url')) ?>" placeholder="https://nestora.my">
+        <p class="muted" style="font-size:.8rem;margin-top:6px">Used to build absolute share links. Leave blank to auto-detect from the request.</p>
+    </div>
+    <div class="field">
+        <label>Share / link preview image (shown on WhatsApp, Facebook, etc.)</label>
+        <?php $shareImg = (string) $s('share_image'); ?>
+        <?php if ($shareImg): ?>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px">
+                <img src="<?= e(base_url('/' . ltrim($shareImg, '/'))) ?>" alt="Share image"
+                     style="width:200px;height:105px;object-fit:cover;border-radius:12px;border:1px solid var(--line)">
+                <label class="muted" style="font-weight:400">
+                    <input type="checkbox" name="remove_share_image" value="1"> Remove current image
+                </label>
+            </div>
+        <?php endif; ?>
+        <input type="file" name="share_image" accept="image/jpeg,image/png,image/webp">
+        <p class="muted" style="font-size:.8rem;margin-top:6px">Recommended 1200&times;630 px (landscape). Falls back to the ambassador photo if not set.</p>
+    </div>
+    <div class="form-row">
+        <div class="field"><label>Facebook URL</label><input type="text" name="social_facebook" value="<?= e((string)$s('social_facebook')) ?>" placeholder="https://facebook.com/nestora"></div>
+        <div class="field"><label>Instagram URL</label><input type="text" name="social_instagram" value="<?= e((string)$s('social_instagram')) ?>" placeholder="https://instagram.com/nestora"></div>
+    </div>
+    <div class="form-row">
+        <div class="field"><label>TikTok URL</label><input type="text" name="social_tiktok" value="<?= e((string)$s('social_tiktok')) ?>" placeholder="https://tiktok.com/@nestora"></div>
+        <div class="field"><label>YouTube URL</label><input type="text" name="social_youtube" value="<?= e((string)$s('social_youtube')) ?>" placeholder="https://youtube.com/@nestora"></div>
+    </div>
+
+    <h3 style="margin:22px 0 12px">Bank &amp; manual payment</h3>
+    <div class="form-row">
+        <div class="field"><label>Bank name</label><input type="text" name="bank_name" value="<?= e((string)$s('bank_name')) ?>"></div>
+        <div class="field"><label>Account name</label><input type="text" name="bank_account_name" value="<?= e((string)$s('bank_account_name')) ?>"></div>
+    </div>
+    <div class="field"><label>Account number</label><input type="text" name="bank_account_number" value="<?= e((string)$s('bank_account_number')) ?>"></div>
+    <div class="field"><label>Payment instructions</label><textarea name="payment_instructions"><?= e((string)$s('payment_instructions')) ?></textarea></div>
+
+    <h3 style="margin:22px 0 12px">HitPay online payment</h3>
+    <div class="field">
+        <label><input type="checkbox" name="hitpay_enabled" value="1" <?= $s('hitpay_enabled','0')==='1'?'checked':'' ?>>
+            Enable "Pay online now" at checkout (card / FPX / e-wallet via HitPay)</label>
+    </div>
+    <div class="form-row">
+        <div class="field">
+            <label>Mode</label>
+            <select name="hitpay_mode">
+                <option value="sandbox" <?= $s('hitpay_mode','sandbox')==='sandbox'?'selected':'' ?>>Sandbox (testing)</option>
+                <option value="live" <?= $s('hitpay_mode','sandbox')==='live'?'selected':'' ?>>Live (real payments)</option>
+            </select>
+        </div>
+        <div class="field"><label>Currency</label><input type="text" name="hitpay_currency" value="<?= e((string)$s('hitpay_currency','MYR')) ?>" placeholder="MYR"></div>
+    </div>
+    <div class="field">
+        <label>API key</label>
+        <input type="password" name="hitpay_api_key" placeholder="<?= $s('hitpay_api_key') ? '•••••••• (saved — leave blank to keep)' : 'Paste your HitPay API key' ?>">
+    </div>
+    <div class="field">
+        <label>Salt (webhook signing secret)</label>
+        <input type="password" name="hitpay_salt" placeholder="<?= $s('hitpay_salt') ? '•••••••• (saved — leave blank to keep)' : 'Paste your HitPay Salt value' ?>">
+    </div>
+    <p class="muted" style="font-size:.8rem;margin:-4px 0 6px">
+        Find these in your HitPay dashboard under <strong>Payment Gateway &rarr; API Keys</strong>.
+        Use <strong>sandbox</strong> keys with Sandbox mode and <strong>live</strong> keys with Live mode.
+        Set the webhook URL in HitPay (or it is sent automatically per payment) to:
+        <code><?= e(rtrim((string)$s('site_url', site_origin()), '/') . base_url('/hitpay_webhook.php')) ?></code>
+    </p>
+
+    <h3 style="margin:22px 0 12px">Scent refill subscriptions</h3>
+    <div class="field">
+        <label><input type="checkbox" name="subscriptions_enabled" value="1" <?= $s('subscriptions_enabled','0')==='1'?'checked':'' ?>>
+            Enable "Subscribe &amp; save" on essential oil products</label>
+    </div>
+    <div class="form-row">
+        <div class="field"><label>Subscriber discount (%)</label><input type="number" step="0.01" min="0" max="90" name="subscription_discount_percent" value="<?= e((string)$s('subscription_discount_percent','10')) ?>"></div>
+        <div class="field"></div>
+    </div>
+    <div class="field"><label>Subscription public text</label><textarea name="subscription_public_text"><?= e((string)$s('subscription_public_text','Never run out of your favourite scent. Subscribe and we will deliver a fresh refill on your schedule — pause or cancel anytime.')) ?></textarea></div>
+    <?php $cronKey = (string) $s('cron_key', ''); ?>
+    <p class="muted" style="font-size:.8rem;margin:-4px 0 6px">
+        Refills are generated automatically by a daily cron. After saving (which creates a key),
+        set up this cron in Hostinger to run once a day:<br>
+        <code>php <?= e(APP_ROOT) ?>/cron_subscriptions.php</code><br>
+        or via URL: <code><?= e(rtrim((string)$s('site_url', site_origin()), '/') . base_url('/cron_subscriptions.php') . '?key=' . ($cronKey ?: 'SAVE_TO_GENERATE')) ?></code>
+    </p>
+
+    <h3 style="margin:22px 0 12px">Email / SMTP (Hostinger)</h3>
+    <div class="field">
+        <label><input type="checkbox" name="mail_enabled" value="1" <?= $s('mail_enabled','0')==='1'?'checked':'' ?>>
+            Enable sending email (admin alerts &amp; customer confirmations)</label>
+    </div>
+    <div class="form-row">
+        <div class="field"><label>SMTP host</label><input type="text" name="smtp_host" value="<?= e((string)$s('smtp_host','smtp.hostinger.com')) ?>"></div>
+        <div class="field"><label>SMTP port</label><input type="text" name="smtp_port" value="<?= e((string)$s('smtp_port','465')) ?>"></div>
+    </div>
+    <div class="form-row">
+        <div class="field">
+            <label>Security</label>
+            <select name="smtp_secure">
+                <option value="ssl" <?= $s('smtp_secure','ssl')==='ssl'?'selected':'' ?>>SSL (port 465)</option>
+                <option value="tls" <?= $s('smtp_secure','ssl')==='tls'?'selected':'' ?>>STARTTLS (port 587)</option>
+            </select>
+        </div>
+        <div class="field"><label>SMTP username (full email)</label><input type="text" name="smtp_user" value="<?= e((string)$s('smtp_user','hello@nestora.my')) ?>"></div>
+    </div>
+    <div class="field">
+        <label>SMTP password (mailbox password)</label>
+        <input type="password" name="smtp_pass" placeholder="<?= $s('smtp_pass') ? '•••••••• (saved — leave blank to keep)' : 'Enter mailbox password' ?>">
+    </div>
+    <div class="form-row">
+        <div class="field"><label>From name</label><input type="text" name="mail_from_name" value="<?= e((string)$s('mail_from_name','NESTORA')) ?>"></div>
+        <div class="field"><label>Admin alerts go to</label><input type="text" name="mail_admin_to" value="<?= e((string)$s('mail_admin_to', (string)$s('contact_email','hello@nestora.my'))) ?>"></div>
+    </div>
+    <p class="muted" style="font-size:.8rem;margin:-4px 0 14px">
+        Hostinger: host <strong>smtp.hostinger.com</strong>, SSL port <strong>465</strong>,
+        username = full email <strong>hello@nestora.my</strong>, password = that mailbox's password.
+        Sender stays hello@nestora.my so it passes your domain SPF.
+    </p>
+
     <button class="btn btn-primary btn-block" type="submit">Save settings</button>
 </form>
 

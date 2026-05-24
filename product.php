@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/inventory.php';
+require_once __DIR__ . '/inc/subscriptions.php';
 
 $slug = input('slug');
 $stmt = db()->prepare("SELECT * FROM products WHERE slug = :s AND status='active' LIMIT 1");
@@ -24,6 +26,14 @@ $images = $imgStmt->fetchAll();
 $heroImg = product_image_url($images[0]['file_path'] ?? null);
 
 $eff       = effective_price($p);
+$was       = reference_price($p);
+$isBundle  = $p['product_type'] === 'bundle';
+$bundleItems = $isBundle ? bundle_components((int) $p['id']) : [];
+if ($bundleItems) {
+    $worth = 0.0;
+    foreach ($bundleItems as $bi) { $worth += effective_price($bi) * (int) $bi['quantity']; }
+    if ($worth > $was) { $was = $worth; }
+}
 $isOil     = $p['product_type'] === 'essential_oil' || $p['product_type'] === 'diffuser';
 $pageTitle = $p['name'];
 $pageDesc  = $p['short_description'] ?? '';
@@ -47,8 +57,25 @@ require_once __DIR__ . '/inc/header.php';
 
                 <div class="pd-price">
                     <span class="now"><?= money($eff) ?></span>
-                    <?php if ($eff < (float)$p['price']): ?><span class="was"><?= money((float)$p['price']) ?></span><?php endif; ?>
+                    <?php if ($was > $eff): ?><span class="was"><?= money($was) ?></span><?php endif; ?>
                 </div>
+                <?php if ($isBundle && $was > $eff): ?>
+                    <p style="color:var(--terracotta);font-weight:600;margin:-6px 0 6px">
+                        Bundle saving: <?= money($was - $eff) ?>
+                    </p>
+                <?php endif; ?>
+                <?php if ($isBundle && $bundleItems): ?>
+                    <div class="pd-meta" style="display:block">
+                        <dt style="font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">What's inside this bundle</dt>
+                        <ul style="margin:8px 0 0;padding-left:18px;color:var(--brown)">
+                            <?php foreach ($bundleItems as $bi): ?>
+                                <li style="margin:4px 0">
+                                    <?= e($bi['name']) ?> &times; <?= (int) $bi['quantity'] ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endif; ?>
 
                 <div>
                     <span class="badge badge-<?= e($p['stock_status']) ?>">
@@ -68,7 +95,8 @@ require_once __DIR__ . '/inc/header.php';
                     $mp = monthly_payment($eff, $m); ?>
                     <div class="pd-inst">
                         <strong>From <?= money($mp) ?>/month for <?= $m ?> months.</strong><br>
-                        <span class="muted"><?= e(get_setting('installment_public_text', 'Bring comfort home today, pay comfortably over time.')) ?></span>
+                        <span class="muted"><?= e(get_setting('installment_public_text', 'Bring comfort home today, pay comfortably over time.')) ?></span><br>
+                        <a href="<?= base_url('/installment_apply.php?product=' . urlencode($p['slug'])) ?>" style="color:var(--terracotta);font-size:.9rem">Apply for a monthly comfort plan &rarr;</a>
                     </div>
                 <?php endif; ?>
 
@@ -91,13 +119,42 @@ require_once __DIR__ . '/inc/header.php';
                     </dl>
                 <?php endif; ?>
 
+                <?php if (subscriptions_enabled() && $p['product_type'] === 'essential_oil'):
+                    $subPrice = subscriber_price($p);
+                    $subPct   = subscription_discount_percent(); ?>
+                    <div class="pd-inst" style="border-color:var(--terracotta)">
+                        <strong>Subscribe &amp; save<?= $subPct > 0 ? ' ' . rtrim(rtrim(number_format($subPct, 2), '0'), '.') . '%' : '' ?></strong>
+                        &mdash; fresh refills delivered on your schedule.<br>
+                        <span class="muted"><?= e(get_setting('subscription_public_text', 'Never run out of your favourite scent. Pause or cancel anytime.')) ?></span>
+                        <form method="post" action="<?= base_url('/subscribe.php') ?>" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
+                            <select name="frequency">
+                                <?php foreach (subscription_frequencies() as $key => $f): ?>
+                                    <option value="<?= e($key) ?>"><?= e($f['label']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="number" name="quantity" value="1" min="1" max="12" style="width:70px" aria-label="Quantity per refill">
+                            <button class="btn btn-primary" type="submit">Subscribe &mdash; <?= money($subPrice) ?>/refill</button>
+                        </form>
+                    </div>
+                <?php endif; ?>
+
+                <?php $soldOut = !inventory_in_stock($p, 1); $remaining = inventory_remaining($p); ?>
+                <?php if ($remaining !== null && $remaining > 0 && $remaining <= 5): ?>
+                    <p style="color:var(--terracotta);font-weight:600;margin:4px 0">Only <?= (int)$remaining ?> left in stock.</p>
+                <?php endif; ?>
                 <div class="pd-actions">
-                    <form method="post" action="<?= base_url('/cart.php') ?>" style="display:inline">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="add">
-                        <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
-                        <button class="btn btn-primary btn-lg" type="submit">Add to cart</button>
-                    </form>
+                    <?php if ($soldOut): ?>
+                        <button class="btn btn-soft btn-lg" type="button" disabled style="opacity:.6;cursor:not-allowed">Out of stock</button>
+                    <?php else: ?>
+                        <form method="post" action="<?= base_url('/cart.php') ?>" style="display:inline">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="add">
+                            <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
+                            <button class="btn btn-primary btn-lg" type="submit">Add to cart</button>
+                        </form>
+                    <?php endif; ?>
                     <a class="btn btn-soft btn-lg" href="<?= whatsapp_url($waMsg) ?>" target="_blank" rel="noopener">WhatsApp inquiry</a>
                 </div>
             </div>

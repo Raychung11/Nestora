@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/mailer.php';
 $pageTitle = 'Contact Nestora';
 $sent = false;
 $errors = [];
@@ -20,6 +21,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
              VALUES (:n,:p,:a,:m,'contact_form','new')"
         );
         $ins->execute([':n' => $name, ':p' => $phone, ':a' => $area ?: null, ':m' => $message ?: null]);
+
+        notify_admin('New contact enquiry', mail_template('New contact enquiry',
+            '<p><strong>Name:</strong> ' . e($name) . '<br>'
+            . '<strong>Phone:</strong> ' . e($phone) . '<br>'
+            . '<strong>Delivery area:</strong> ' . e($area ?: '-') . '</p>'
+            . '<p><strong>Message:</strong><br>' . nl2br(e($message ?: '-')) . '</p>'));
+
         $sent = true;
     }
 }

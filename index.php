@@ -149,7 +149,12 @@ function product_card(array $p): void {
 <!-- 7. Brand ambassador -->
 <section>
     <div class="container ambassador">
-        <div class="a-photo"></div>
+        <?php $ambassadorImg = get_setting('ambassador_image'); ?>
+        <?php if ($ambassadorImg && is_file(APP_ROOT . '/' . ltrim($ambassadorImg, '/'))): ?>
+            <div class="a-photo"><img src="<?= e(base_url('/' . ltrim($ambassadorImg, '/'))) ?>" alt="<?= e(get_setting('ambassador_name', 'Nestora Comfort Ambassador')) ?>"></div>
+        <?php else: ?>
+            <div class="a-photo"></div>
+        <?php endif; ?>
         <div class="a-body">
             <span class="eyebrow" style="color:var(--terracotta);letter-spacing:.22em;text-transform:uppercase;font-size:.72rem">Brand Ambassador</span>
             <h2 style="margin:12px 0"><?= e(get_setting('ambassador_name', 'Nestora Comfort Ambassador')) ?></h2>
@@ -186,7 +191,7 @@ function product_card(array $p): void {
                 <h2>Meet your Nestora AI Comfort Advisor</h2>
                 <p>Warm, calm and helpful. Tell us how you want your home to feel and we&rsquo;ll guide you to the right comfort.</p>
             </div>
-            <a class="btn btn-primary btn-lg" href="<?= whatsapp_url() ?>" target="_blank" rel="noopener">Chat on WhatsApp</a>
+            <a class="btn btn-primary btn-lg" href="<?= base_url('/comfort_advisor.php') ?>">Talk to the Comfort Advisor</a>
         </div>
     </div>
 </section>

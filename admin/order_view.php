@@ -1,6 +1,9 @@
 <?php
 $pageTitle = 'Order';
 require_once __DIR__ . '/../inc/auth.php';
+require_once __DIR__ . '/../inc/documents.php';
+require_once __DIR__ . '/../inc/inventory.php';
+require_once __DIR__ . '/../inc/notifications.php';
 require_admin();
 $pdo = db();
 
@@ -28,6 +31,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
          delivery_status=:ds, admin_notes=:n WHERE id=:id'
     )->execute([':os'=>$os, ':ps'=>$ps, ':ss'=>$ss, ':ds'=>$ds, ':n'=>$notes, ':id'=>$id]);
 
+    ensure_invoice($pdo, $id);
+    if ($ps === 'paid') {
+        ensure_receipt($pdo, $id);
+        inventory_decrement_for_order($pdo, $id);
+    }
+
+    // Email the customer if the order moved into a notify-able status.
+    $fresh = $pdo->prepare('SELECT * FROM orders WHERE id = :id');
+    $fresh->execute([':id' => $id]);
+    if ($freshOrder = $fresh->fetch()) {
+        notify_order_status($pdo, $freshOrder);
+    }
+
     set_flash('success', 'Order updated.');
     redirect(base_url('/admin/order_view.php?id=' . $id));
 }
@@ -45,7 +61,13 @@ require_once __DIR__ . '/../inc/admin_layout.php';
 ?>
 <div class="panel-head">
     <h2>Order <?= e($order['order_number']) ?></h2>
-    <a class="btn btn-soft btn-sm" href="<?= base_url('/admin/orders.php') ?>">&larr; Back to orders</a>
+    <div class="actions-inline">
+        <a class="btn btn-soft btn-sm" href="<?= base_url('/document.php?order=' . urlencode($order['order_number']) . '&type=invoice') ?>" target="_blank" rel="noopener">Invoice</a>
+        <?php if (!empty($order['receipt_number'])): ?>
+            <a class="btn btn-soft btn-sm" href="<?= base_url('/document.php?order=' . urlencode($order['order_number']) . '&type=receipt') ?>" target="_blank" rel="noopener">Receipt</a>
+        <?php endif; ?>
+        <a class="btn btn-soft btn-sm" href="<?= base_url('/admin/orders.php') ?>">&larr; Back to orders</a>
+    </div>
 </div>
 
 <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:24px;align-items:start">

@@ -53,12 +53,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'dimensions'           => input('dimensions'),
         'delivery_note'        => input('delivery_note'),
         'price'                => (float) input('price'),
+        'base_price'           => input('base_price') !== '' ? (float) input('base_price') : null,
         'promo_price'          => input('promo_price') !== '' ? (float) input('promo_price') : null,
+        'cost_price'           => input('cost_price') !== '' ? (float) input('cost_price') : null,
         'installment_eligible' => isset($_POST['installment_eligible']) ? 1 : 0,
         'max_installment_months' => in_array(input('max_installment_months'), ['6','12','24'], true) ? input('max_installment_months') : '24',
         'supplier_cost'        => input('supplier_cost') !== '' ? (float) input('supplier_cost') : null,
         'supplier_id'          => (int) input('supplier_id') ?: null,
         'stock_status'         => in_array(input('stock_status'), ['available','preorder','checking','unavailable'], true) ? input('stock_status') : 'available',
+        'track_inventory'      => isset($_POST['track_inventory']) ? 1 : 0,
+        'stock_quantity'       => max(0, (int) input('stock_quantity')),
+        'low_stock_threshold'  => max(0, (int) input('low_stock_threshold')),
         'is_featured'          => isset($_POST['is_featured']) ? 1 : 0,
         'status'               => in_array(input('status'), ['draft','active','hidden'], true) ? input('status') : 'draft',
     ];
@@ -192,8 +197,26 @@ require_once __DIR__ . '/../inc/admin_layout.php';
 
         <h3 style="margin:22px 0 12px">Pricing &amp; installment</h3>
         <div class="form-row">
-            <div class="field"><label>Price (RM) *</label><input type="number" step="0.01" name="price" value="<?= e((string)$v('price','0')) ?>" required></div>
+            <div class="field"><label>Selling price (RM) *</label><input type="number" step="0.01" name="price" value="<?= e((string)$v('price','0')) ?>" required></div>
+            <div class="field"><label>Base price / RRP (RM)</label><input type="number" step="0.01" name="base_price" value="<?= e((string)($v('base_price') ?? '')) ?>" placeholder="Shown struck-through if higher than selling"></div>
+        </div>
+        <div class="form-row">
             <div class="field"><label>Promo price (RM)</label><input type="number" step="0.01" name="promo_price" value="<?= e((string)($v('promo_price') ?? '')) ?>"></div>
+            <div class="field">
+                <label>Cost price / costing (RM) — admin only</label>
+                <input type="number" step="0.01" name="cost_price" value="<?= e((string)($v('cost_price') ?? '')) ?>" placeholder="Your true cost incl. freight/packaging">
+                <?php
+                $sp = (float) $v('price', 0);
+                $cp = $v('cost_price') !== '' && $v('cost_price') !== null ? (float) $v('cost_price') : null;
+                if ($cp !== null && $sp > 0):
+                    $margin = $sp - $cp;
+                    $pct = $sp > 0 ? round($margin / $sp * 100, 1) : 0;
+                ?>
+                    <p class="muted" style="font-size:.8rem;margin-top:6px">
+                        Margin: <strong><?= money($margin) ?></strong> (<?= e((string)$pct) ?>%)
+                    </p>
+                <?php endif; ?>
+            </div>
         </div>
         <div class="form-row">
             <div class="field">
@@ -243,6 +266,17 @@ require_once __DIR__ . '/../inc/admin_layout.php';
             </div>
         </div>
         <div class="field"><label><input type="checkbox" name="is_featured" value="1" <?= $v('is_featured')?'checked':'' ?>> Show on homepage (featured)</label></div>
+
+        <h3 style="margin:22px 0 12px">Inventory</h3>
+        <div class="field">
+            <label><input type="checkbox" name="track_inventory" value="1" <?= $v('track_inventory')?'checked':'' ?>>
+                Track stock quantity for this product</label>
+            <p class="muted" style="font-size:.8rem;margin-top:6px">When on, stock is reduced automatically each time an order is paid, and the product is marked unavailable at zero. For a bundle, its component products are reduced instead.</p>
+        </div>
+        <div class="form-row">
+            <div class="field"><label>Stock quantity</label><input type="number" name="stock_quantity" min="0" value="<?= e((string)$v('stock_quantity','0')) ?>"></div>
+            <div class="field"><label>Low-stock alert at (0 = off)</label><input type="number" name="low_stock_threshold" min="0" value="<?= e((string)$v('low_stock_threshold','0')) ?>"></div>
+        </div>
 
         <div class="field"><label>Add product image (JPG, PNG, WEBP)</label><input type="file" name="image" accept="image/jpeg,image/png,image/webp"></div>
 

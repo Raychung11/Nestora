@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../inc/auth.php';
+require_once __DIR__ . '/../inc/security.php';
 
 if (current_admin()) {
     redirect(base_url('/admin/dashboard.php'));
@@ -8,13 +9,20 @@ if (current_admin()) {
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
-    $email = input('email');
-    $pass  = $_POST['password'] ?? '';
-    if (admin_login($email, (string) $pass)) {
-        set_flash('success', 'Welcome back.');
-        redirect(base_url('/admin/dashboard.php'));
+    [$allowed, $wait] = login_throttle_check('admin');
+    if (!$allowed) {
+        $error = login_lock_message($wait);
+    } else {
+        $email = input('email');
+        $pass  = $_POST['password'] ?? '';
+        if (admin_login($email, (string) $pass)) {
+            login_record_success('admin');
+            set_flash('success', 'Welcome back.');
+            redirect(base_url('/admin/dashboard.php'));
+        }
+        login_record_failure('admin');
+        $error = 'Invalid email or password.';
     }
-    $error = 'Invalid email or password.';
 }
 ?>
 <!DOCTYPE html>

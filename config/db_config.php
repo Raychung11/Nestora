@@ -30,6 +30,8 @@ define('APP_ROOT', dirname(__DIR__));
 // Upload directories (relative to project root)
 define('UPLOAD_PRODUCTS_DIR', APP_ROOT . '/uploads/products');
 define('UPLOAD_BANNERS_DIR',  APP_ROOT . '/uploads/banners');
+define('UPLOAD_PAYMENTS_DIR', APP_ROOT . '/uploads/payments');
+define('UPLOAD_BRAND_DIR',    APP_ROOT . '/uploads/brand');
 
 // ---- PDO connection (singleton) ------------------------------------
 function db(): PDO

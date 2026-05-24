@@ -9,7 +9,29 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/config/db_config.php';
 
 if (session_status() === PHP_SESSION_NONE) {
+    // Harden the session cookie before the session starts.
+    $secure = (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off')
+        || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https'
+        || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443;
+    if (PHP_VERSION_ID >= 70300) {
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path'     => '/',
+            'httponly' => true,
+            'secure'   => $secure,
+            'samesite' => 'Lax',
+        ]);
+    } else {
+        session_set_cookie_params(0, '/; samesite=Lax', '', $secure, true);
+    }
     session_start();
+}
+
+/* Baseline security headers (safe for every page; sent once per request). */
+if (PHP_SAPI !== 'cli' && !headers_sent()) {
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
 }
 
 /* --------------------------------------------------------------------
@@ -32,6 +54,24 @@ function redirect(string $path): void
 function base_url(string $path = ''): string
 {
     return BASE_URL . $path;
+}
+
+/**
+ * Scheme + host for building absolute URLs (Open Graph, share links).
+ * Uses the admin-configured "Website URL" when set, otherwise derives
+ * it from the current request (proxy-aware).
+ */
+function site_origin(): string
+{
+    $configured = trim((string) get_setting('site_url', ''));
+    if ($configured !== '') {
+        return rtrim($configured, '/');
+    }
+    $https = (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off')
+        || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https'
+        || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443;
+    $host = $_SERVER['HTTP_HOST'] ?? 'nestora.my';
+    return ($https ? 'https' : 'http') . '://' . $host;
 }
 
 /* --------------------------------------------------------------------
@@ -120,6 +160,54 @@ function effective_price(array $product): float
         return (float) $product['promo_price'];
     }
     return $price;
+}
+
+/** Sum of the current session cart at effective (promo-aware) prices. */
+function cart_subtotal(): float
+{
+    if (empty($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
+        return 0.0;
+    }
+    $ids = implode(',', array_map('intval', array_keys($_SESSION['cart'])));
+    if ($ids === '') {
+        return 0.0;
+    }
+    $rows = db()->query("SELECT * FROM products WHERE id IN ($ids)")->fetchAll();
+    $total = 0.0;
+    foreach ($rows as $r) {
+        $qty = (int) ($_SESSION['cart'][$r['id']] ?? 0);
+        $total += effective_price($r) * $qty;
+    }
+    return $total;
+}
+
+/**
+ * Reference ("was") price for strike-through display: the higher of the
+ * selling price and the base/RRP price. Compared against effective_price().
+ */
+function reference_price(array $product): float
+{
+    $ref = (float) $product['price'];
+    if (!empty($product['base_price']) && (float) $product['base_price'] > $ref) {
+        $ref = (float) $product['base_price'];
+    }
+    return $ref;
+}
+
+/**
+ * Component products of a bundle (product_type='bundle') with quantities.
+ */
+function bundle_components(int $bundleId): array
+{
+    $stmt = db()->prepare(
+        'SELECT bi.quantity, p.id, p.name, p.slug, p.sku, p.price, p.promo_price, p.cost_price
+         FROM bundle_items bi
+         JOIN products p ON p.id = bi.product_id
+         WHERE bi.bundle_id = :b
+         ORDER BY bi.id'
+    );
+    $stmt->execute([':b' => $bundleId]);
+    return $stmt->fetchAll();
 }
 
 /**
@@ -246,6 +334,48 @@ function handle_image_upload(array $file, string $targetDir, string $prefix = 'i
     }
 
     // Return path relative to project root for storage in DB.
+    return 'uploads/' . basename($targetDir) . '/' . $filename;
+}
+
+/**
+ * Payment proof upload — accepts JPG, PNG, WEBP and PDF.
+ */
+function handle_proof_upload(array $file, string $targetDir, string $prefix = 'pay'): ?string
+{
+    if (!isset($file['error']) || $file['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Upload failed. Please try again.');
+    }
+    if ($file['size'] > 8 * 1024 * 1024) {
+        throw new RuntimeException('File too large (max 8MB).');
+    }
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime  = $finfo->file($file['tmp_name']);
+    $allowed = [
+        'image/jpeg'      => 'jpg',
+        'image/png'       => 'png',
+        'image/webp'      => 'webp',
+        'application/pdf' => 'pdf',
+    ];
+    if (!isset($allowed[$mime])) {
+        throw new RuntimeException('Only JPG, PNG, WEBP or PDF files are allowed.');
+    }
+
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0775, true);
+    }
+
+    $ext      = $allowed[$mime];
+    $filename = $prefix . '-' . date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '.' . $ext;
+    $dest     = rtrim($targetDir, '/') . '/' . $filename;
+
+    if (!move_uploaded_file($file['tmp_name'], $dest)) {
+        throw new RuntimeException('Could not save the uploaded file.');
+    }
+
     return 'uploads/' . basename($targetDir) . '/' . $filename;
 }
 

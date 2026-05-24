@@ -106,13 +106,18 @@ CREATE TABLE IF NOT EXISTS products (
     material             VARCHAR(255)  NULL,            -- furniture
     dimensions           VARCHAR(255)  NULL,            -- furniture
     delivery_note        VARCHAR(255)  NULL,
-    price                DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    price                DECIMAL(10,2) NOT NULL DEFAULT 0.00,   -- selling price (customer pays)
+    base_price           DECIMAL(10,2) NULL,                     -- RRP / "worth" (struck-through when higher)
     promo_price          DECIMAL(10,2) NULL,
     installment_eligible TINYINT(1)    NOT NULL DEFAULT 0,
     max_installment_months ENUM('6','12','24') NOT NULL DEFAULT '24',
     supplier_cost        DECIMAL(10,2) NULL,            -- ADMIN ONLY - never public
+    cost_price           DECIMAL(10,2) NULL,            -- ADMIN ONLY - costing for margin
     supplier_id          INT UNSIGNED  NULL,
     stock_status         ENUM('available','preorder','checking','unavailable') NOT NULL DEFAULT 'available',
+    track_inventory      TINYINT(1)    NOT NULL DEFAULT 0,
+    stock_quantity       INT           NOT NULL DEFAULT 0,
+    low_stock_threshold  INT           NOT NULL DEFAULT 0,
     is_featured          TINYINT(1)    NOT NULL DEFAULT 0,
     status               ENUM('draft','active','hidden') NOT NULL DEFAULT 'draft',
     created_at           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -145,6 +150,51 @@ CREATE TABLE IF NOT EXISTS product_images (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
+-- 5b. bundle_items  (a bundle is a product with product_type='bundle')
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS bundle_items (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    bundle_id  INT UNSIGNED NOT NULL,
+    product_id INT UNSIGNED NOT NULL,
+    quantity   INT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_bundle (bundle_id),
+    KEY idx_bundle_product (product_id),
+    CONSTRAINT fk_bundle_parent FOREIGN KEY (bundle_id)  REFERENCES products(id) ON DELETE CASCADE,
+    CONSTRAINT fk_bundle_child  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- 6b. subscriptions  (scent refill — schedule-based recurring orders)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    customer_id       INT UNSIGNED NOT NULL,
+    product_id        INT UNSIGNED NULL,
+    product_name      VARCHAR(190) NOT NULL,
+    sku               VARCHAR(80)  NULL,
+    quantity          INT NOT NULL DEFAULT 1,
+    frequency         ENUM('monthly','bimonthly','quarterly') NOT NULL DEFAULT 'monthly',
+    unit_price        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    customer_name     VARCHAR(150) NOT NULL,
+    phone             VARCHAR(40)  NULL,
+    email             VARCHAR(190) NULL,
+    address           TEXT         NULL,
+    status            ENUM('active','paused','cancelled') NOT NULL DEFAULT 'active',
+    next_renewal_date DATE         NULL,
+    last_order_id     INT UNSIGNED NULL,
+    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_sub_customer (customer_id),
+    KEY idx_sub_status (status),
+    KEY idx_sub_due (status, next_renewal_date),
+    CONSTRAINT fk_sub_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+    CONSTRAINT fk_sub_product  FOREIGN KEY (product_id)  REFERENCES products(id)  ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
 -- 7. orders
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS orders (
@@ -156,13 +206,25 @@ CREATE TABLE IF NOT EXISTS orders (
     email              VARCHAR(190)  NULL,
     address            TEXT          NULL,
     total_amount       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    payment_method     ENUM('bank_transfer','fpx','installment','cash_deposit') NOT NULL DEFAULT 'bank_transfer',
+    subtotal_amount    DECIMAL(10,2) NULL,
+    discount_amount    DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    voucher_code       VARCHAR(40)   NULL,
+    subscription_id    INT UNSIGNED  NULL,
+    stock_decremented  TINYINT(1)    NOT NULL DEFAULT 0,
+    last_status_notified VARCHAR(40) NULL,
+    payment_method     ENUM('bank_transfer','fpx','installment','cash_deposit','hitpay') NOT NULL DEFAULT 'bank_transfer',
+    payment_gateway    VARCHAR(20)   NULL,
+    payment_ref        VARCHAR(80)   NULL,
     installment_months ENUM('0','6','12','24') NOT NULL DEFAULT '0',
     order_status       ENUM('new','pending_confirmation','payment_pending','paid','supplier_checking','supplier_confirmed','preparing_delivery','delivered','completed','cancelled','refunded') NOT NULL DEFAULT 'new',
     payment_status     ENUM('unpaid','pending','paid','failed','refunded') NOT NULL DEFAULT 'unpaid',
     supplier_status    ENUM('not_started','checking','confirmed','unavailable') NOT NULL DEFAULT 'not_started',
     delivery_status    ENUM('not_started','preparing','shipped','delivered') NOT NULL DEFAULT 'not_started',
     admin_notes        TEXT          NULL,
+    invoice_number     VARCHAR(40)   NULL,
+    invoice_issued_at  DATETIME      NULL,
+    receipt_number     VARCHAR(40)   NULL,
+    receipt_issued_at  DATETIME      NULL,
     created_at         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -300,4 +362,107 @@ CREATE TABLE IF NOT EXISTS whatsapp_leads (
     updated_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_wa_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- payment_proofs (Phase 2 - manual payment upload)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS payment_proofs (
+    id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id     INT UNSIGNED  NOT NULL,
+    method       ENUM('bank_transfer','cash_deposit','fpx','other') NOT NULL DEFAULT 'bank_transfer',
+    amount       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    reference    VARCHAR(120)  NULL,
+    file_path    VARCHAR(255)  NOT NULL,
+    note         TEXT          NULL,
+    status       ENUM('submitted','verified','rejected') NOT NULL DEFAULT 'submitted',
+    reviewed_by  INT UNSIGNED  NULL,
+    created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_proof_order (order_id),
+    KEY idx_proof_status (status),
+    CONSTRAINT fk_proof_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT fk_proof_admin FOREIGN KEY (reviewed_by) REFERENCES admin_users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- vouchers  (discount / promo codes applied at checkout)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS vouchers (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code        VARCHAR(40)  NOT NULL,
+    description VARCHAR(160) NULL,
+    type        ENUM('percent','fixed') NOT NULL DEFAULT 'percent',
+    value       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    min_spend   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    max_uses    INT NOT NULL DEFAULT 0,
+    used_count  INT NOT NULL DEFAULT 0,
+    starts_at   DATE NULL,
+    expires_at  DATE NULL,
+    status      ENUM('active','disabled') NOT NULL DEFAULT 'active',
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_voucher_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- login_attempts  (brute-force throttle for admin & customer logins)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    ip           VARCHAR(45)  NOT NULL,
+    scope        VARCHAR(20)  NOT NULL,
+    attempts     INT NOT NULL DEFAULT 0,
+    locked_until DATETIME NULL,
+    updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_ip_scope (ip, scope)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- purchase_orders  (procurement / inbound stock from suppliers)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS purchase_orders (
+    id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    po_number      VARCHAR(40)  NOT NULL,
+    supplier_id    INT UNSIGNED NULL,
+    status         ENUM('draft','ordered','partial','received','cancelled') NOT NULL DEFAULT 'draft',
+    order_date     DATE NULL,
+    expected_date  DATE NULL,
+    received_date  DATE NULL,
+    subtotal       DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    total          DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    amount_paid    DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    payment_status ENUM('unpaid','partial','paid') NOT NULL DEFAULT 'unpaid',
+    notes          TEXT NULL,
+    created_by     INT UNSIGNED NULL,
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_po_number (po_number),
+    KEY idx_po_supplier (supplier_id),
+    KEY idx_po_status (status),
+    CONSTRAINT fk_po_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,
+    CONSTRAINT fk_po_admin    FOREIGN KEY (created_by)  REFERENCES admin_users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- purchase_order_items
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS purchase_order_items (
+    id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    po_id             INT UNSIGNED NOT NULL,
+    product_id        INT UNSIGNED NULL,
+    product_name      VARCHAR(190) NOT NULL,
+    sku               VARCHAR(80)  NULL,
+    quantity_ordered  INT NOT NULL DEFAULT 0,
+    quantity_received INT NOT NULL DEFAULT 0,
+    unit_cost         DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    line_total        DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_poi_po (po_id),
+    CONSTRAINT fk_poi_po      FOREIGN KEY (po_id)      REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    CONSTRAINT fk_poi_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

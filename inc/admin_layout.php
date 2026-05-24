@@ -17,12 +17,18 @@ $pageTitle = $pageTitle ?? 'Admin';
 $nav = [
     'dashboard.php'            => 'Dashboard',
     'orders.php'               => 'Orders',
+    'payments.php'             => 'Payments',
     'quiz_leads.php'           => 'Comfort Quiz Leads',
+    'whatsapp_leads.php'       => 'WhatsApp Leads',
     'installment_requests.php' => 'Installment Requests',
+    'subscriptions.php'        => 'Scent Subscriptions',
     'products.php'             => 'Products',
+    'bundles.php'              => 'Bundle Packages',
+    'vouchers.php'             => 'Voucher Codes',
     'categories.php'           => 'Categories',
     'customers.php'            => 'Customers',
     'suppliers.php'            => 'Suppliers',
+    'purchase_orders.php'      => 'Purchase Orders',
     'banners.php'              => 'Banners',
     'testimonials.php'         => 'Testimonials',
     'settings.php'             => 'Settings',
@@ -52,9 +58,13 @@ $currentFile = basename($_SERVER['SCRIPT_NAME']);
     <div class="admin-main">
         <header class="admin-topbar">
             <h1><?= e($pageTitle) ?></h1>
-            <div class="admin-user">
-                <?= e($admin['name'] ?? 'Admin') ?>
-                <span class="admin-role"><?= e(label($admin['role'] ?? 'admin')) ?></span>
+            <div class="admin-topbar-actions">
+                <a class="btn btn-soft btn-sm" href="<?= base_url('/index.php') ?>" target="_blank" rel="noopener">View site &#8599;</a>
+                <div class="admin-user">
+                    <?= e($admin['name'] ?? 'Admin') ?>
+                    <span class="admin-role"><?= e(label($admin['role'] ?? 'admin')) ?></span>
+                </div>
+                <a class="btn btn-danger btn-sm" href="<?= base_url('/admin/logout.php') ?>">Sign out</a>
             </div>
         </header>
         <div class="admin-content">

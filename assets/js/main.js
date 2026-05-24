@@ -41,6 +41,45 @@
     show(0);
   }
 
+  /* ---- Nav dropdowns (click/touch; desktop also opens on hover) ---- */
+  var groups = document.querySelectorAll('.nav-group');
+  groups.forEach(function (g) {
+    var label = g.querySelector('.nav-group-label');
+    if (!label) return;
+    label.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var wasOpen = g.classList.contains('open');
+      groups.forEach(function (o) { o.classList.remove('open'); });
+      if (!wasOpen) g.classList.add('open');
+    });
+  });
+  document.addEventListener('click', function () {
+    groups.forEach(function (o) { o.classList.remove('open'); });
+  });
+
+  /* ---- Show / hide password toggle ---- */
+  document.querySelectorAll('input[type="password"]').forEach(function (input) {
+    var wrap = document.createElement('div');
+    wrap.className = 'pw-wrap';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pw-toggle';
+    btn.textContent = 'Show';
+    btn.setAttribute('aria-label', 'Show password');
+    wrap.appendChild(btn);
+
+    btn.addEventListener('click', function () {
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.textContent = show ? 'Hide' : 'Show';
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      input.focus();
+    });
+  });
+
   /* ---- Confirm destructive admin actions ---- */
   document.querySelectorAll('[data-confirm]').forEach(function (el) {
     el.addEventListener('submit', function (e) {
