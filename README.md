@@ -152,6 +152,17 @@ text); manage in Admin -> Scent Subscriptions. Files: `inc/subscriptions.php`,
 (or re-run `install.php`) to add the `subscriptions` table,
 `orders.subscription_id` and the related settings.
 
+Purchase Orders / procurement (Phase 7): the inbound side of inventory.
+Raise a PO to a supplier with line items (product, qty, unit cost), mark
+it ordered, then receive stock fully or partially — receiving increases
+product `stock_quantity`, refreshes the product's landed `supplier_cost`,
+and flips it back to available. Supplier payments are tracked against the
+PO total (unpaid / partial / paid). Managed in Admin -> Purchase Orders
+(`admin/purchase_orders.php`, `admin/purchase_order_form.php`,
+`inc/purchasing.php`); the dashboard shows open POs. Run
+`database/phase7.sql` (or re-run `install.php`) to add the
+`purchase_orders` + `purchase_order_items` tables.
+
 Remaining (live WhatsApp AI integration, true card-on-file recurring
 billing) layers on without schema-breaking changes.
 

@@ -16,6 +16,7 @@ $quizLeads     = (int) $pdo->query("SELECT COUNT(*) FROM comfort_quiz_leads WHER
 $instRequests  = (int) $pdo->query("SELECT COUNT(*) FROM installment_requests WHERE status IN ('new','reviewing')")->fetchColumn();
 $waLeads       = (int) $pdo->query("SELECT COUNT(*) FROM whatsapp_leads WHERE status='new'")->fetchColumn();
 $paymentsToVerify = (int) $pdo->query("SELECT COUNT(*) FROM payment_proofs WHERE status='submitted'")->fetchColumn();
+$openPOs          = (int) $pdo->query("SELECT COUNT(*) FROM purchase_orders WHERE status IN ('ordered','partial')")->fetchColumn();
 
 $topProducts = $pdo->query(
     "SELECT product_name, SUM(quantity) AS qty, SUM(line_total) AS revenue
@@ -49,6 +50,7 @@ require_once __DIR__ . '/../inc/admin_layout.php';
     <div class="stat"><div class="num"><?= $instRequests ?></div><div class="lbl">Installment Requests</div></div>
     <div class="stat"><div class="num"><?= $waLeads ?></div><div class="lbl">New WhatsApp Leads</div></div>
     <div class="stat"><div class="num"><?= $paymentsToVerify ?></div><div class="lbl">Payments to Verify</div></div>
+    <div class="stat"><div class="num"><?= $openPOs ?></div><div class="lbl">Open Purchase Orders</div></div>
 </div>
 
 <?php if ($paymentsToVerify > 0): ?>

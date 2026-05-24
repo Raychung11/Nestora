@@ -28,6 +28,7 @@ $nav = [
     'categories.php'           => 'Categories',
     'customers.php'            => 'Customers',
     'suppliers.php'            => 'Suppliers',
+    'purchase_orders.php'      => 'Purchase Orders',
     'banners.php'              => 'Banners',
     'testimonials.php'         => 'Testimonials',
     'settings.php'             => 'Settings',
