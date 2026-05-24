@@ -23,6 +23,7 @@ $nav = [
     'installment_requests.php' => 'Installment Requests',
     'products.php'             => 'Products',
     'bundles.php'              => 'Bundle Packages',
+    'vouchers.php'             => 'Voucher Codes',
     'categories.php'           => 'Categories',
     'customers.php'            => 'Customers',
     'suppliers.php'            => 'Suppliers',

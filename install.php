@@ -43,7 +43,7 @@ try {
 
     $pdo = db();
 
-    foreach (['schema.sql', 'seed.sql', 'phase2.sql', 'phase3.sql', 'phase4.sql'] as $file) {
+    foreach (['schema.sql', 'seed.sql', 'phase2.sql', 'phase3.sql', 'phase4.sql', 'phase5.sql'] as $file) {
         $sql = file_get_contents(__DIR__ . '/database/' . $file);
         if ($sql === false) {
             throw new RuntimeException("Cannot read $file");

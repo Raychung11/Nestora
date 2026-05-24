@@ -1,8 +1,11 @@
 <?php
 $pageTitle = 'Dashboard';
 require_once __DIR__ . '/../inc/auth.php';
+require_once __DIR__ . '/../inc/inventory.php';
 require_admin();
 $pdo = db();
+
+$lowStock = inventory_low_stock($pdo);
 
 $totalOrders   = (int) $pdo->query("SELECT COUNT(*) FROM orders")->fetchColumn();
 $newInquiries  = (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE order_status IN ('new','pending_confirmation')")->fetchColumn();
@@ -52,6 +55,26 @@ require_once __DIR__ . '/../inc/admin_layout.php';
 <div class="flash flash-info">
     <?= $paymentsToVerify ?> payment proof<?= $paymentsToVerify === 1 ? '' : 's' ?> awaiting verification.
     <a href="<?= base_url('/admin/payments.php?status=submitted') ?>">Review now &rarr;</a>
+</div>
+<?php endif; ?>
+
+<?php if ($lowStock): ?>
+<div class="panel">
+    <div class="panel-head"><h2>Low stock</h2><span class="tag"><?= count($lowStock) ?> item<?= count($lowStock) === 1 ? '' : 's' ?></span></div>
+    <table class="table">
+        <thead><tr><th>Product</th><th>SKU</th><th>In stock</th><th>Alert at</th><th></th></tr></thead>
+        <tbody>
+        <?php foreach ($lowStock as $ls): ?>
+            <tr>
+                <td><strong><?= e($ls['name']) ?></strong></td>
+                <td class="muted"><?= e($ls['sku']) ?></td>
+                <td><span class="badge badge-<?= (int)$ls['stock_quantity'] <= 0 ? 'unavailable' : 'preorder' ?>"><?= (int)$ls['stock_quantity'] ?></span></td>
+                <td class="muted"><?= (int)$ls['low_stock_threshold'] ?></td>
+                <td><a class="btn btn-soft btn-sm" href="<?= base_url('/admin/product_form.php?id=' . (int)$ls['id']) ?>">Restock</a></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
 </div>
 <?php endif; ?>
 

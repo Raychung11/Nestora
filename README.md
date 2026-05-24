@@ -113,8 +113,33 @@ webhook (sorted key+value HMAC in the `hmac` field). Validate in Sandbox
 before going live; if HMAC check fails, payments still confirm manually
 in Admin -> Orders (safe fallback, never auto-paid without confirmation).
 
-Remaining Phase 3/4 (live WhatsApp AI integration, scent refill
-subscription) layers on without schema-breaking changes.
+Phase 5 enhancements:
+
+- Discount / voucher codes: percentage or fixed, with min-spend, usage
+  limit, and date window. Customers apply a code in the cart; it is
+  re-validated live, persisted on the order (subtotal/discount/total) and
+  reflected in emails, HitPay charge and installment maths. Managed in
+  Admin -> Voucher Codes (`inc/vouchers.php`, `admin/vouchers.php`).
+- Stock & inventory: opt-in per product (`track_inventory`,
+  `stock_quantity`, `low_stock_threshold`). Stock auto-decrements once
+  when an order is paid (guarded by `orders.stock_decremented`; a bundle
+  reduces its component products), out-of-stock blocks add-to-cart and
+  checkout, and the dashboard lists low-stock items (`inc/inventory.php`).
+- Order-status notifications: customers are emailed a friendly update
+  with a tracking link when an order enters a customer-facing status
+  (each status at most once), plus a public `track.php` tracking page by
+  order number (`inc/notifications.php`).
+- Security hardening: per-IP login throttling for admin & customer
+  sign-in (`login_attempts` table, lock after 5 fails for 15 min,
+  `inc/security.php`), hardened session cookie (HttpOnly/SameSite/Secure)
+  and baseline security headers in the bootstrap.
+
+Run `database/phase5.sql` (or re-run `install.php`) to add the voucher /
+inventory / notification columns and the `vouchers` + `login_attempts`
+tables to an existing database.
+
+Remaining (live WhatsApp AI integration, scent refill subscription)
+layers on without schema-breaking changes.
 
 ## Security
 

@@ -61,6 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'supplier_cost'        => input('supplier_cost') !== '' ? (float) input('supplier_cost') : null,
         'supplier_id'          => (int) input('supplier_id') ?: null,
         'stock_status'         => in_array(input('stock_status'), ['available','preorder','checking','unavailable'], true) ? input('stock_status') : 'available',
+        'track_inventory'      => isset($_POST['track_inventory']) ? 1 : 0,
+        'stock_quantity'       => max(0, (int) input('stock_quantity')),
+        'low_stock_threshold'  => max(0, (int) input('low_stock_threshold')),
         'is_featured'          => isset($_POST['is_featured']) ? 1 : 0,
         'status'               => in_array(input('status'), ['draft','active','hidden'], true) ? input('status') : 'draft',
     ];
@@ -263,6 +266,17 @@ require_once __DIR__ . '/../inc/admin_layout.php';
             </div>
         </div>
         <div class="field"><label><input type="checkbox" name="is_featured" value="1" <?= $v('is_featured')?'checked':'' ?>> Show on homepage (featured)</label></div>
+
+        <h3 style="margin:22px 0 12px">Inventory</h3>
+        <div class="field">
+            <label><input type="checkbox" name="track_inventory" value="1" <?= $v('track_inventory')?'checked':'' ?>>
+                Track stock quantity for this product</label>
+            <p class="muted" style="font-size:.8rem;margin-top:6px">When on, stock is reduced automatically each time an order is paid, and the product is marked unavailable at zero. For a bundle, its component products are reduced instead.</p>
+        </div>
+        <div class="form-row">
+            <div class="field"><label>Stock quantity</label><input type="number" name="stock_quantity" min="0" value="<?= e((string)$v('stock_quantity','0')) ?>"></div>
+            <div class="field"><label>Low-stock alert at (0 = off)</label><input type="number" name="low_stock_threshold" min="0" value="<?= e((string)$v('low_stock_threshold','0')) ?>"></div>
+        </div>
 
         <div class="field"><label>Add product image (JPG, PNG, WEBP)</label><input type="file" name="image" accept="image/jpeg,image/png,image/webp"></div>
 

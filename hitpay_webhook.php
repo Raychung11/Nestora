@@ -14,6 +14,7 @@ require_once __DIR__ . '/inc/functions.php';
 require_once __DIR__ . '/inc/documents.php';
 require_once __DIR__ . '/inc/mailer.php';
 require_once __DIR__ . '/inc/hitpay.php';
+require_once __DIR__ . '/inc/inventory.php';
 
 // Never leak errors into the webhook response.
 http_response_code(200);
@@ -91,6 +92,7 @@ try {
 
     ensure_invoice($pdo, (int) $order['id']);
     ensure_receipt($pdo, (int) $order['id']);
+    inventory_decrement_for_order($pdo, (int) $order['id']);
 
     $row = $pdo->prepare('SELECT * FROM orders WHERE id = :id');
     $row->execute([':id' => $order['id']]);

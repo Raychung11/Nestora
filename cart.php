@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/vouchers.php';
+require_once __DIR__ . '/inc/inventory.php';
 
 $pageTitle = 'Your Cart';
 
@@ -13,28 +15,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pid    = (int) input('product_id');
 
     if ($action === 'add' && $pid > 0) {
-        $stmt = db()->prepare("SELECT id FROM products WHERE id=:id AND status='active' LIMIT 1");
+        $stmt = db()->prepare("SELECT * FROM products WHERE id=:id AND status='active' LIMIT 1");
         $stmt->execute([':id' => $pid]);
-        if ($stmt->fetchColumn()) {
-            $_SESSION['cart'][$pid] = ($_SESSION['cart'][$pid] ?? 0) + 1;
-            set_flash('success', 'Added to your comfort cart.');
-        } else {
+        $prod = $stmt->fetch();
+        if (!$prod) {
             set_flash('error', 'That item is not available.');
+        } else {
+            $wanted = ($_SESSION['cart'][$pid] ?? 0) + 1;
+            if (!inventory_in_stock($prod, $wanted)) {
+                set_flash('error', 'Sorry, there is not enough stock for that quantity.');
+            } else {
+                $_SESSION['cart'][$pid] = $wanted;
+                set_flash('success', 'Added to your comfort cart.');
+            }
         }
     } elseif ($action === 'update' && $pid > 0) {
         $qty = max(0, (int) input('qty'));
         if ($qty === 0) {
             unset($_SESSION['cart'][$pid]);
+            set_flash('success', 'Cart updated.');
         } else {
-            $_SESSION['cart'][$pid] = min($qty, 99);
+            $qty = min($qty, 99);
+            $stmt = db()->prepare("SELECT * FROM products WHERE id=:id LIMIT 1");
+            $stmt->execute([':id' => $pid]);
+            $prod = $stmt->fetch();
+            $remaining = $prod ? inventory_remaining($prod) : null;
+            if ($remaining !== null && $qty > $remaining) {
+                $qty = max(0, $remaining);
+                set_flash('info', 'Quantity adjusted to the stock available.');
+            } else {
+                set_flash('success', 'Cart updated.');
+            }
+            if ($qty > 0) {
+                $_SESSION['cart'][$pid] = $qty;
+            } else {
+                unset($_SESSION['cart'][$pid]);
+            }
         }
-        set_flash('success', 'Cart updated.');
     } elseif ($action === 'remove' && $pid > 0) {
         unset($_SESSION['cart'][$pid]);
         set_flash('success', 'Item removed.');
     } elseif ($action === 'clear') {
         $_SESSION['cart'] = [];
+        voucher_clear();
         set_flash('info', 'Cart cleared.');
+    } elseif ($action === 'apply_voucher') {
+        $res = voucher_apply(input('voucher_code'), cart_subtotal());
+        set_flash($res['ok'] ? 'success' : 'error', $res['message']);
+    } elseif ($action === 'remove_voucher') {
+        voucher_clear();
+        set_flash('info', 'Discount removed.');
     }
     redirect(base_url('/cart.php'));
 }
@@ -97,15 +127,37 @@ require_once __DIR__ . '/inc/header.php';
                 </tbody>
             </table>
 
+            <?php $vc = voucher_current($total); $discount = $vc['discount'] ?? 0.0; $grand = max(0, $total - $discount); ?>
             <div class="cart-summary">
-                <form method="post" data-confirm="Clear all items from your cart?">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="action" value="clear">
-                    <button class="btn btn-soft" type="submit">Clear cart</button>
-                </form>
+                <div>
+                    <form method="post" data-confirm="Clear all items from your cart?" style="margin-bottom:14px">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="clear">
+                        <button class="btn btn-soft" type="submit">Clear cart</button>
+                    </form>
+                    <?php if ($vc): ?>
+                        <form method="post" style="display:flex;gap:8px;align-items:center">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="remove_voucher">
+                            <span class="tag">Code <?= e($vc['code']) ?> &minus;<?= money($discount) ?></span>
+                            <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+                        </form>
+                    <?php else: ?>
+                        <form method="post" style="display:flex;gap:8px;align-items:center">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="apply_voucher">
+                            <input type="text" name="voucher_code" placeholder="Discount code" style="width:160px;padding:8px;text-transform:uppercase">
+                            <button class="btn btn-soft btn-sm" type="submit">Apply</button>
+                        </form>
+                    <?php endif; ?>
+                </div>
                 <div style="text-align:right">
-                    <div class="muted">Estimated total</div>
-                    <div style="font-family:var(--font-serif);font-size:1.8rem;color:var(--brown)"><?= money($total) ?></div>
+                    <div class="muted">Subtotal: <?= money($total) ?></div>
+                    <?php if ($discount > 0): ?>
+                        <div class="muted" style="color:var(--terracotta)">Discount: &minus;<?= money($discount) ?></div>
+                    <?php endif; ?>
+                    <div class="muted" style="margin-top:6px">Estimated total</div>
+                    <div style="font-family:var(--font-serif);font-size:1.8rem;color:var(--brown)"><?= money($grand) ?></div>
                     <a class="btn btn-primary btn-lg mt" href="<?= base_url('/checkout.php') ?>">Proceed to order</a>
                 </div>
             </div>

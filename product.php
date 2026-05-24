@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/inventory.php';
 
 $slug = input('slug');
 $stmt = db()->prepare("SELECT * FROM products WHERE slug = :s AND status='active' LIMIT 1");
@@ -117,13 +118,21 @@ require_once __DIR__ . '/inc/header.php';
                     </dl>
                 <?php endif; ?>
 
+                <?php $soldOut = !inventory_in_stock($p, 1); $remaining = inventory_remaining($p); ?>
+                <?php if ($remaining !== null && $remaining > 0 && $remaining <= 5): ?>
+                    <p style="color:var(--terracotta);font-weight:600;margin:4px 0">Only <?= (int)$remaining ?> left in stock.</p>
+                <?php endif; ?>
                 <div class="pd-actions">
-                    <form method="post" action="<?= base_url('/cart.php') ?>" style="display:inline">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="add">
-                        <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
-                        <button class="btn btn-primary btn-lg" type="submit">Add to cart</button>
-                    </form>
+                    <?php if ($soldOut): ?>
+                        <button class="btn btn-soft btn-lg" type="button" disabled style="opacity:.6;cursor:not-allowed">Out of stock</button>
+                    <?php else: ?>
+                        <form method="post" action="<?= base_url('/cart.php') ?>" style="display:inline">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="add">
+                            <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
+                            <button class="btn btn-primary btn-lg" type="submit">Add to cart</button>
+                        </form>
+                    <?php endif; ?>
                     <a class="btn btn-soft btn-lg" href="<?= whatsapp_url($waMsg) ?>" target="_blank" rel="noopener">WhatsApp inquiry</a>
                 </div>
             </div>

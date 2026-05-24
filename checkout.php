@@ -3,6 +3,8 @@ require_once __DIR__ . '/inc/customer_auth.php';
 require_once __DIR__ . '/inc/mailer.php';
 require_once __DIR__ . '/inc/documents.php';
 require_once __DIR__ . '/inc/hitpay.php';
+require_once __DIR__ . '/inc/vouchers.php';
+require_once __DIR__ . '/inc/inventory.php';
 
 $pageTitle = 'Checkout';
 
@@ -46,6 +48,12 @@ foreach ($rows as $r) {
     $items[] = ['p' => $r, 'qty' => $qty, 'price' => $price];
 }
 
+// Apply a discount code if one is held in the session and still valid.
+$voucher     = voucher_current($total);
+$discount    = $voucher['discount'] ?? 0.0;
+$voucherCode = $voucher['code'] ?? null;
+$grandTotal  = max(0, round($total - $discount, 2));
+
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -68,6 +76,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($name === '')    { $errors[] = 'Please enter your name.'; }
     if ($phone === '')   { $errors[] = 'Please enter a contact number.'; }
     if ($address === '') { $errors[] = 'Please enter a delivery address.'; }
+
+    foreach ($items as $it) {
+        if (!inventory_in_stock($it['p'], $it['qty'])) {
+            $errors[] = '"' . $it['p']['name'] . '" no longer has enough stock. Please adjust your cart.';
+        }
+    }
 
     if (!$errors) {
         $pdo = db();
@@ -100,13 +114,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $oIns = $pdo->prepare(
                 "INSERT INTO orders
                  (order_number, customer_id, customer_name, phone, email, address,
-                  total_amount, payment_method, installment_months, order_status, payment_status)
-                 VALUES (:onum,:cid,:n,:p,:e,:a,:tot,:pay,:months,'new','unpaid')"
+                  total_amount, subtotal_amount, discount_amount, voucher_code,
+                  payment_method, installment_months, order_status, payment_status)
+                 VALUES (:onum,:cid,:n,:p,:e,:a,:tot,:sub,:disc,:vcode,:pay,:months,'new','unpaid')"
             );
             $oIns->execute([
                 ':onum' => $orderNumber, ':cid' => $customerId, ':n' => $name,
                 ':p' => $phone, ':e' => $email ?: null, ':a' => $address,
-                ':tot' => $total, ':pay' => $payment, ':months' => (string) $months,
+                ':tot' => $grandTotal, ':sub' => $total, ':disc' => $discount,
+                ':vcode' => $voucherCode, ':pay' => $payment, ':months' => (string) $months,
             ]);
             $orderId = (int) $pdo->lastInsertId();
 
@@ -128,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($payment === 'installment' && $months > 0) {
-                $monthly = monthly_payment($total, $months);
+                $monthly = monthly_payment($grandTotal, $months);
                 $rIns = $pdo->prepare(
                     "INSERT INTO installment_requests
                      (order_id, customer_name, phone, email, product_summary,
@@ -137,13 +153,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $rIns->execute([
                     ':oid' => $orderId, ':n' => $name, ':p' => $phone, ':e' => $email ?: null,
-                    ':sum' => count($items) . ' item(s)', ':tot' => $total,
+                    ':sum' => count($items) . ' item(s)', ':tot' => $grandTotal,
                     ':m' => (string) $months, ':mp' => $monthly,
                 ]);
             }
 
+            if ($voucherCode) {
+                voucher_mark_used($voucherCode);
+            }
+
             $pdo->commit();
             $_SESSION['cart'] = [];
+            voucher_clear();
 
             ensure_invoice($pdo, $orderId);
             $invStmt = $pdo->prepare('SELECT invoice_number FROM orders WHERE id = :id');
@@ -159,15 +180,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     . ' &times; ' . (int) $it['qty'] . '</td><td style="padding:6px 0;text-align:right">'
                     . money($it['price'] * $it['qty']) . '</td></tr>';
             }
+            $discountRow = $discount > 0
+                ? '<tr><td style="padding:4px 0">Subtotal</td><td style="padding:4px 0;text-align:right">'
+                    . money($total) . '</td></tr>'
+                  . '<tr><td style="padding:4px 0">Discount' . ($voucherCode ? ' (' . e($voucherCode) . ')' : '')
+                    . '</td><td style="padding:4px 0;text-align:right">&minus;' . money($discount) . '</td></tr>'
+                : '';
             $summary = '<p><strong>Order:</strong> ' . e($orderNumber) . '<br>'
                 . '<strong>Name:</strong> ' . e($name) . '<br>'
                 . '<strong>Phone:</strong> ' . e($phone)
                 . ($email ? '<br><strong>Email:</strong> ' . e($email) : '')
                 . '<br><strong>Address:</strong> ' . nl2br(e($address)) . '</p>'
-                . '<table style="width:100%;border-collapse:collapse">' . $itemsHtml
+                . '<table style="width:100%;border-collapse:collapse">' . $itemsHtml . $discountRow
                 . '<tr><td style="padding:8px 0;border-top:1px solid #e3d6c4"><strong>Total</strong></td>'
                 . '<td style="padding:8px 0;border-top:1px solid #e3d6c4;text-align:right"><strong>'
-                . money($total) . '</strong></td></tr></table>';
+                . money($grandTotal) . '</strong></td></tr></table>';
 
             notify_admin(
                 'New order ' . $orderNumber,
@@ -188,8 +215,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $payUrl = hitpay_start_for_order($pdo, [
                         'id' => $orderId, 'order_number' => $orderNumber,
-                        'total_amount' => $total, 'customer_name' => $name,
-                        'email' => $email,
+                        'total_amount' => $grandTotal, 'customer_name' => $name,
+                        'email' => $email, 'phone' => $phone,
                     ]);
                     redirect($payUrl);
                 } catch (Throwable $hx) {
@@ -272,8 +299,17 @@ require_once __DIR__ . '/inc/header.php';
                     </div>
                 <?php endforeach; ?>
                 <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+                <?php if ($discount > 0): ?>
+                    <div style="display:flex;justify-content:space-between;font-size:.92rem;color:var(--muted)">
+                        <span>Subtotal</span><span><?= money($total) ?></span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:.92rem;color:var(--terracotta);margin-top:4px">
+                        <span>Discount<?= $voucherCode ? ' (' . e($voucherCode) . ')' : '' ?></span><span>&minus;<?= money($discount) ?></span>
+                    </div>
+                    <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+                <?php endif; ?>
                 <div style="display:flex;justify-content:space-between;font-family:var(--font-serif);font-size:1.3rem;color:var(--brown)">
-                    <span>Total</span><span><?= money($total) ?></span>
+                    <span>Total</span><span><?= money($grandTotal) ?></span>
                 </div>
             </div>
         </div>

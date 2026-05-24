@@ -31,6 +31,7 @@
         <div>
             <h4>Nestora</h4>
             <a href="<?= base_url('/about.php') ?>">About Nestora</a>
+            <a href="<?= base_url('/track.php') ?>">Track My Order</a>
             <a href="<?= base_url('/contact.php') ?>">Contact / WhatsApp</a>
             <a href="<?= base_url('/privacy.php') ?>">Privacy Policy</a>
             <a href="<?= base_url('/terms.php') ?>">Terms &amp; Conditions</a>

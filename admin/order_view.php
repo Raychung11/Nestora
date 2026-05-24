@@ -2,6 +2,8 @@
 $pageTitle = 'Order';
 require_once __DIR__ . '/../inc/auth.php';
 require_once __DIR__ . '/../inc/documents.php';
+require_once __DIR__ . '/../inc/inventory.php';
+require_once __DIR__ . '/../inc/notifications.php';
 require_admin();
 $pdo = db();
 
@@ -32,6 +34,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ensure_invoice($pdo, $id);
     if ($ps === 'paid') {
         ensure_receipt($pdo, $id);
+        inventory_decrement_for_order($pdo, $id);
+    }
+
+    // Email the customer if the order moved into a notify-able status.
+    $fresh = $pdo->prepare('SELECT * FROM orders WHERE id = :id');
+    $fresh->execute([':id' => $id]);
+    if ($freshOrder = $fresh->fetch()) {
+        notify_order_status($pdo, $freshOrder);
     }
 
     set_flash('success', 'Order updated.');

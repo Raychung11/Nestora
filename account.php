@@ -71,6 +71,7 @@ require_once __DIR__ . '/inc/header.php';
                                 <td>
                                     <div class="actions-inline">
                                         <a class="btn btn-soft btn-sm" href="<?= base_url('/order_success.php?order=' . urlencode($o['order_number'])) ?>">View</a>
+                                        <a class="btn btn-soft btn-sm" href="<?= base_url('/track.php?order=' . urlencode($o['order_number'])) ?>">Track</a>
                                         <a class="btn btn-soft btn-sm" href="<?= e(base_url('/document.php?order=' . urlencode($o['order_number']) . '&type=invoice&k=' . document_token($o['order_number']))) ?>" target="_blank" rel="noopener">Invoice</a>
                                         <?php if (!empty($o['receipt_number'])): ?>
                                             <a class="btn btn-soft btn-sm" href="<?= e(base_url('/document.php?order=' . urlencode($o['order_number']) . '&type=receipt&k=' . document_token($o['order_number']))) ?>" target="_blank" rel="noopener">Receipt</a>

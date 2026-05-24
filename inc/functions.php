@@ -9,7 +9,29 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/config/db_config.php';
 
 if (session_status() === PHP_SESSION_NONE) {
+    // Harden the session cookie before the session starts.
+    $secure = (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off')
+        || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https'
+        || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443;
+    if (PHP_VERSION_ID >= 70300) {
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path'     => '/',
+            'httponly' => true,
+            'secure'   => $secure,
+            'samesite' => 'Lax',
+        ]);
+    } else {
+        session_set_cookie_params(0, '/; samesite=Lax', '', $secure, true);
+    }
     session_start();
+}
+
+/* Baseline security headers (safe for every page; sent once per request). */
+if (PHP_SAPI !== 'cli' && !headers_sent()) {
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
 }
 
 /* --------------------------------------------------------------------
@@ -138,6 +160,25 @@ function effective_price(array $product): float
         return (float) $product['promo_price'];
     }
     return $price;
+}
+
+/** Sum of the current session cart at effective (promo-aware) prices. */
+function cart_subtotal(): float
+{
+    if (empty($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
+        return 0.0;
+    }
+    $ids = implode(',', array_map('intval', array_keys($_SESSION['cart'])));
+    if ($ids === '') {
+        return 0.0;
+    }
+    $rows = db()->query("SELECT * FROM products WHERE id IN ($ids)")->fetchAll();
+    $total = 0.0;
+    foreach ($rows as $r) {
+        $qty = (int) ($_SESSION['cart'][$r['id']] ?? 0);
+        $total += effective_price($r) * $qty;
+    }
+    return $total;
 }
 
 /**

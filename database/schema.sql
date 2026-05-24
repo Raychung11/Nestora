@@ -115,6 +115,9 @@ CREATE TABLE IF NOT EXISTS products (
     cost_price           DECIMAL(10,2) NULL,            -- ADMIN ONLY - costing for margin
     supplier_id          INT UNSIGNED  NULL,
     stock_status         ENUM('available','preorder','checking','unavailable') NOT NULL DEFAULT 'available',
+    track_inventory      TINYINT(1)    NOT NULL DEFAULT 0,
+    stock_quantity       INT           NOT NULL DEFAULT 0,
+    low_stock_threshold  INT           NOT NULL DEFAULT 0,
     is_featured          TINYINT(1)    NOT NULL DEFAULT 0,
     status               ENUM('draft','active','hidden') NOT NULL DEFAULT 'draft',
     created_at           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -174,6 +177,11 @@ CREATE TABLE IF NOT EXISTS orders (
     email              VARCHAR(190)  NULL,
     address            TEXT          NULL,
     total_amount       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    subtotal_amount    DECIMAL(10,2) NULL,
+    discount_amount    DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    voucher_code       VARCHAR(40)   NULL,
+    stock_decremented  TINYINT(1)    NOT NULL DEFAULT 0,
+    last_status_notified VARCHAR(40) NULL,
     payment_method     ENUM('bank_transfer','fpx','installment','cash_deposit','hitpay') NOT NULL DEFAULT 'bank_transfer',
     payment_gateway    VARCHAR(20)   NULL,
     payment_ref        VARCHAR(80)   NULL,
@@ -346,4 +354,38 @@ CREATE TABLE IF NOT EXISTS payment_proofs (
     KEY idx_proof_status (status),
     CONSTRAINT fk_proof_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     CONSTRAINT fk_proof_admin FOREIGN KEY (reviewed_by) REFERENCES admin_users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- vouchers  (discount / promo codes applied at checkout)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS vouchers (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code        VARCHAR(40)  NOT NULL,
+    description VARCHAR(160) NULL,
+    type        ENUM('percent','fixed') NOT NULL DEFAULT 'percent',
+    value       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    min_spend   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    max_uses    INT NOT NULL DEFAULT 0,
+    used_count  INT NOT NULL DEFAULT 0,
+    starts_at   DATE NULL,
+    expires_at  DATE NULL,
+    status      ENUM('active','disabled') NOT NULL DEFAULT 'active',
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_voucher_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- login_attempts  (brute-force throttle for admin & customer logins)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    ip           VARCHAR(45)  NOT NULL,
+    scope        VARCHAR(20)  NOT NULL,
+    attempts     INT NOT NULL DEFAULT 0,
+    locked_until DATETIME NULL,
+    updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_ip_scope (ip, scope)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

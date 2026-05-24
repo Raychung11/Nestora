@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/inc/customer_auth.php';
+require_once __DIR__ . '/inc/security.php';
 
 $pageTitle = 'Sign in';
 
@@ -11,14 +12,21 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
-    $email = input('email');
-    $pass  = (string) ($_POST['password'] ?? '');
+    [$allowed, $wait] = login_throttle_check('customer');
+    if (!$allowed) {
+        $error = login_lock_message($wait);
+    } else {
+        $email = input('email');
+        $pass  = (string) ($_POST['password'] ?? '');
 
-    if (customer_login($email, $pass)) {
-        set_flash('success', 'Welcome back.');
-        redirect(base_url('/account.php'));
+        if (customer_login($email, $pass)) {
+            login_record_success('customer');
+            set_flash('success', 'Welcome back.');
+            redirect(base_url('/account.php'));
+        }
+        login_record_failure('customer');
+        $error = 'Invalid email or password.';
     }
-    $error = 'Invalid email or password.';
 }
 
 require_once __DIR__ . '/inc/header.php';
