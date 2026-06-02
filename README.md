@@ -163,6 +163,26 @@ PO total (unpaid / partial / paid). Managed in Admin -> Purchase Orders
 `database/phase7.sql` (or re-run `install.php`) to add the
 `purchase_orders` + `purchase_order_items` tables.
 
+Partnership program (Phase 8): hybrid referral + reseller, with Starter
+and Elite tiers. A public application page (`partnership.php`) collects
+applicants; admin reviews in **Partner Applications** and approves with a
+chosen tier, which generates a unique referral code and emails the
+partner a temporary password + welcome details. Visitors arriving via
+`?ref=CODE` (or entering a code at checkout) are attributed last-click;
+the order links to the partner and a **pending** commission is recorded,
+auto-**approved** when the order is paid (and **voided** when cancelled
+or refunded). Partners sign in to `/partner/` — dashboard with referral
+link + earnings, profile + password, and a **Wholesale Shop** where they
+order their own stock at the tier discount; wholesale orders are tagged
+`is_wholesale` and do not generate self-commissions. Admin pages:
+**Partners**, **Commissions** (with status override), **Partner
+Payouts**. Tier defaults (commission % / wholesale discount %) and
+program enable live in Admin → Settings → Partnership program. Run
+`database/phase8.sql` (or re-run `install.php`) to add the
+`partner_applications` / `partners` / `partner_commissions` /
+`partner_payouts` tables and `orders.partner_id` / `referral_code` /
+`is_wholesale`.
+
 Remaining (live WhatsApp AI integration, true card-on-file recurring
 billing) layers on without schema-breaking changes.
 

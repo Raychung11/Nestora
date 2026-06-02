@@ -210,6 +210,9 @@ CREATE TABLE IF NOT EXISTS orders (
     discount_amount    DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     voucher_code       VARCHAR(40)   NULL,
     subscription_id    INT UNSIGNED  NULL,
+    partner_id         INT UNSIGNED  NULL,
+    referral_code      VARCHAR(40)   NULL,
+    is_wholesale       TINYINT(1)    NOT NULL DEFAULT 0,
     stock_decremented  TINYINT(1)    NOT NULL DEFAULT 0,
     last_status_notified VARCHAR(40) NULL,
     payment_method     ENUM('bank_transfer','fpx','installment','cash_deposit','hitpay') NOT NULL DEFAULT 'bank_transfer',
@@ -465,4 +468,93 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
     KEY idx_poi_po (po_id),
     CONSTRAINT fk_poi_po      FOREIGN KEY (po_id)      REFERENCES purchase_orders(id) ON DELETE CASCADE,
     CONSTRAINT fk_poi_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- partner_applications  (public application inbox)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS partner_applications (
+    id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name            VARCHAR(150)  NOT NULL,
+    business_name   VARCHAR(180)  NULL,
+    email           VARCHAR(190)  NOT NULL,
+    phone           VARCHAR(40)   NOT NULL,
+    message         TEXT          NULL,
+    requested_tier  ENUM('starter','elite') NOT NULL DEFAULT 'starter',
+    status          ENUM('new','approved','rejected') NOT NULL DEFAULT 'new',
+    reviewed_by     INT UNSIGNED  NULL,
+    reviewed_at     DATETIME      NULL,
+    created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_app_status (status),
+    KEY idx_app_email  (email),
+    CONSTRAINT fk_app_admin FOREIGN KEY (reviewed_by) REFERENCES admin_users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- partners
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS partners (
+    id                       INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name                     VARCHAR(150)  NOT NULL,
+    business_name            VARCHAR(180)  NULL,
+    email                    VARCHAR(190)  NOT NULL,
+    phone                    VARCHAR(40)   NULL,
+    address                  TEXT          NULL,
+    password_hash            VARCHAR(255)  NOT NULL,
+    referral_code            VARCHAR(40)   NOT NULL,
+    tier                     ENUM('starter','elite') NOT NULL DEFAULT 'starter',
+    commission_rate          DECIMAL(5,2) NOT NULL DEFAULT 10.00,
+    wholesale_discount_rate  DECIMAL(5,2) NOT NULL DEFAULT 20.00,
+    status                   ENUM('active','suspended','cancelled') NOT NULL DEFAULT 'active',
+    application_id           INT UNSIGNED  NULL,
+    last_login_at            DATETIME      NULL,
+    created_at               DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at               DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_partner_email (email),
+    UNIQUE KEY uq_partner_ref   (referral_code),
+    KEY idx_partner_status (status),
+    CONSTRAINT fk_partner_app FOREIGN KEY (application_id) REFERENCES partner_applications(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- partner_commissions  (one per referred order)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS partner_commissions (
+    id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    partner_id        INT UNSIGNED NOT NULL,
+    order_id          INT UNSIGNED NOT NULL,
+    base_amount       DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    rate              DECIMAL(5,2)  NOT NULL DEFAULT 0.00,
+    commission_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    status            ENUM('pending','approved','paid','void') NOT NULL DEFAULT 'pending',
+    notes             VARCHAR(255)  NULL,
+    created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_commission_order (order_id),
+    KEY idx_commission_partner (partner_id),
+    KEY idx_commission_status (status),
+    CONSTRAINT fk_commission_partner FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE,
+    CONSTRAINT fk_commission_order   FOREIGN KEY (order_id)   REFERENCES orders(id)   ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- partner_payouts  (admin records cash paid to a partner)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS partner_payouts (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    partner_id  INT UNSIGNED NOT NULL,
+    amount      DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    method      VARCHAR(40)   NULL,
+    reference   VARCHAR(120)  NULL,
+    notes       TEXT          NULL,
+    paid_at     DATE          NULL,
+    recorded_by INT UNSIGNED  NULL,
+    created_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_payout_partner (partner_id),
+    CONSTRAINT fk_payout_partner FOREIGN KEY (partner_id)  REFERENCES partners(id)     ON DELETE CASCADE,
+    CONSTRAINT fk_payout_admin   FOREIGN KEY (recorded_by) REFERENCES admin_users(id)  ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

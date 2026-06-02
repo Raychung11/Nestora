@@ -19,6 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'site_url','social_facebook','social_instagram','social_tiktok','social_youtube',
             'hitpay_mode','hitpay_currency',
             'subscription_discount_percent','subscription_public_text',
+            'partner_program_public_text',
+            'partner_starter_commission','partner_starter_wholesale',
+            'partner_elite_commission','partner_elite_wholesale',
         ];
         $up = $pdo->prepare(
             'INSERT INTO site_settings (setting_key, setting_value) VALUES (:k,:v)
@@ -36,6 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Subscriptions on/off toggle + ensure a cron key exists.
         $up->execute([':k' => 'subscriptions_enabled', ':v' => isset($_POST['subscriptions_enabled']) ? '1' : '0']);
+        // Partnership program on/off.
+        $up->execute([':k' => 'partner_program_enabled', ':v' => isset($_POST['partner_program_enabled']) ? '1' : '0']);
         if (trim((string) get_setting('cron_key', '')) === '') {
             $up->execute([':k' => 'cron_key', ':v' => bin2hex(random_bytes(16))]);
         }
@@ -273,6 +278,24 @@ $s = fn(string $k, string $d='') => get_setting($k, $d);
         set up this cron in Hostinger to run once a day:<br>
         <code>php <?= e(APP_ROOT) ?>/cron_subscriptions.php</code><br>
         or via URL: <code><?= e(rtrim((string)$s('site_url', site_origin()), '/') . base_url('/cron_subscriptions.php') . '?key=' . ($cronKey ?: 'SAVE_TO_GENERATE')) ?></code>
+    </p>
+
+    <h3 style="margin:22px 0 12px">Partnership program (Starter / Elite)</h3>
+    <div class="field">
+        <label><input type="checkbox" name="partner_program_enabled" value="1" <?= $s('partner_program_enabled','0')==='1'?'checked':'' ?>>
+            Enable the Partner Program (public application page + portal)</label>
+    </div>
+    <div class="field"><label>Public program description</label><textarea name="partner_program_public_text"><?= e((string)$s('partner_program_public_text','Grow with Nestora. Earn from every comfort home you inspire — Starter or Elite, your tier, your terms.')) ?></textarea></div>
+    <div class="form-row">
+        <div class="field"><label>Starter — commission (%)</label><input type="number" step="0.01" min="0" max="100" name="partner_starter_commission" value="<?= e((string)$s('partner_starter_commission','10')) ?>"></div>
+        <div class="field"><label>Starter — wholesale discount (%)</label><input type="number" step="0.01" min="0" max="90" name="partner_starter_wholesale" value="<?= e((string)$s('partner_starter_wholesale','20')) ?>"></div>
+    </div>
+    <div class="form-row">
+        <div class="field"><label>Elite — commission (%)</label><input type="number" step="0.01" min="0" max="100" name="partner_elite_commission" value="<?= e((string)$s('partner_elite_commission','20')) ?>"></div>
+        <div class="field"><label>Elite — wholesale discount (%)</label><input type="number" step="0.01" min="0" max="90" name="partner_elite_wholesale" value="<?= e((string)$s('partner_elite_wholesale','30')) ?>"></div>
+    </div>
+    <p class="muted" style="font-size:.8rem;margin:-4px 0 6px">
+        Tier defaults are used to pre-fill rates when approving applications. Per-partner overrides are supported.
     </p>
 
     <h3 style="margin:22px 0 12px">Email / SMTP (Hostinger)</h3>

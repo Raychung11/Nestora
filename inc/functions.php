@@ -34,6 +34,15 @@ if (PHP_SAPI !== 'cli' && !headers_sent()) {
     header('Referrer-Policy: strict-origin-when-cross-origin');
 }
 
+/* Partnership program: capture a referral code from ?ref=CODE for
+ * last-click attribution. Validation happens at order time. */
+if (!empty($_GET['ref'])) {
+    $refIn = strtoupper((string) preg_replace('/[^A-Z0-9]/i', '', (string) $_GET['ref']));
+    if ($refIn !== '') {
+        $_SESSION['referral_code'] = substr($refIn, 0, 40);
+    }
+}
+
 /* --------------------------------------------------------------------
  * Output escaping
  * ------------------------------------------------------------------ */

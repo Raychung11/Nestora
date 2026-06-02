@@ -5,6 +5,7 @@ require_once __DIR__ . '/inc/documents.php';
 require_once __DIR__ . '/inc/hitpay.php';
 require_once __DIR__ . '/inc/vouchers.php';
 require_once __DIR__ . '/inc/inventory.php';
+require_once __DIR__ . '/inc/partners.php';
 
 $pageTitle = 'Checkout';
 
@@ -81,6 +82,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!inventory_in_stock($it['p'], $it['qty'])) {
             $errors[] = '"' . $it['p']['name'] . '" no longer has enough stock. Please adjust your cart.';
         }
+    }
+
+    // Capture a referral code from the form (last-click wins).
+    $refIn = input('referral_code');
+    if ($refIn !== '') {
+        partner_set_session_ref($refIn);
     }
 
     if (!$errors) {
@@ -165,6 +172,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->commit();
             $_SESSION['cart'] = [];
             voucher_clear();
+
+            partner_attach_to_order($pdo, $orderId);
+            partner_clear_ref();
 
             ensure_invoice($pdo, $orderId);
             $invStmt = $pdo->prepare('SELECT invoice_number FROM orders WHERE id = :id');
@@ -284,6 +294,12 @@ require_once __DIR__ . '/inc/header.php';
                                 <option value="<?= $m ?>"><?= $m ?> months &mdash; <?= money(monthly_payment($total, $m)) ?>/month</option>
                             <?php endif; endforeach; ?>
                         </select>
+                    </div>
+                <?php endif; ?>
+                <?php if (partner_program_enabled()): ?>
+                    <div class="field">
+                        <label>Referral code (optional)</label>
+                        <input type="text" name="referral_code" value="<?= e((string)($_SESSION['referral_code'] ?? '')) ?>" placeholder="Partner code, if any" style="text-transform:uppercase">
                     </div>
                 <?php endif; ?>
                 <button class="btn btn-primary btn-lg btn-block mt" type="submit">Place order inquiry</button>

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../inc/auth.php';
 require_once __DIR__ . '/../inc/documents.php';
 require_once __DIR__ . '/../inc/inventory.php';
 require_once __DIR__ . '/../inc/notifications.php';
+require_once __DIR__ . '/../inc/partners.php';
 require_admin();
 $pdo = db();
 
@@ -35,6 +36,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($ps === 'paid') {
         ensure_receipt($pdo, $id);
         inventory_decrement_for_order($pdo, $id);
+        partner_promote_commissions_for_order($pdo, $id);
+    }
+    if (in_array($os, ['cancelled', 'refunded'], true)) {
+        partner_void_commissions_for_order($pdo, $id);
     }
 
     // Email the customer if the order moved into a notify-able status.
