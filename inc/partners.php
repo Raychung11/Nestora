@@ -88,13 +88,35 @@ function partner_clear_ref(): void
 }
 
 /**
+ * A self-referral is when the order's contact details match the
+ * partner's own — we don't pay commission for that.
+ */
+function partner_is_self_referral(array $order, array $partner): bool
+{
+    $oEmail = strtolower(trim((string) ($order['email'] ?? '')));
+    $pEmail = strtolower(trim((string) ($partner['email'] ?? '')));
+    if ($oEmail !== '' && $pEmail !== '' && $oEmail === $pEmail) {
+        return true;
+    }
+    $oPhone = preg_replace('/\D+/', '', (string) ($order['phone'] ?? ''));
+    $pPhone = preg_replace('/\D+/', '', (string) ($partner['phone'] ?? ''));
+    if ($oPhone !== '' && $pPhone !== '' && $oPhone === $pPhone) {
+        return true;
+    }
+    return false;
+}
+
+/**
  * Attach the active session referral to a freshly placed order and
  * create a pending commission. Idempotent (unique key on order_id).
- * No-op for wholesale orders.
+ * No-op for wholesale orders and self-referrals.
  */
 function partner_attach_to_order(PDO $pdo, int $orderId): void
 {
-    $oStmt = $pdo->prepare('SELECT total_amount, is_wholesale, partner_id FROM orders WHERE id = :id');
+    $oStmt = $pdo->prepare(
+        'SELECT total_amount, email, phone, is_wholesale, partner_id
+         FROM orders WHERE id = :id'
+    );
     $oStmt->execute([':id' => $orderId]);
     $order = $oStmt->fetch();
     if (!$order || (int) $order['is_wholesale'] === 1 || !empty($order['partner_id'])) {
@@ -106,6 +128,9 @@ function partner_attach_to_order(PDO $pdo, int $orderId): void
         return;
     }
     $partner = $ref['partner'];
+    if (partner_is_self_referral($order, $partner)) {
+        return;
+    }
     $base    = (float) $order['total_amount'];
     $rate    = (float) $partner['commission_rate'];
     $amount  = round($base * $rate / 100, 2);
