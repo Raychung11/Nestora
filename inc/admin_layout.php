@@ -16,6 +16,7 @@ $admin     = current_admin();
 $pageTitle = $pageTitle ?? 'Admin';
 $nav = [
     'dashboard.php'            => 'Dashboard',
+    'analytics.php'            => 'Analytics',
     'orders.php'               => 'Orders',
     'payments.php'             => 'Payments',
     'quiz_leads.php'           => 'Comfort Quiz Leads',
