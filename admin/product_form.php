@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'stock_quantity'       => max(0, (int) input('stock_quantity')),
         'low_stock_threshold'  => max(0, (int) input('low_stock_threshold')),
         'is_featured'          => isset($_POST['is_featured']) ? 1 : 0,
-        'status'               => in_array(input('status'), ['draft','active','hidden'], true) ? input('status') : 'draft',
+        'status'               => in_array(input('status'), ['draft','active','hidden'], true) ? input('status') : 'active',
     ];
 
     if ($data['name'] === '') { $errors[] = 'Product name is required.'; }
@@ -87,14 +87,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $data['id']   = $id;
                 $set = implode(', ', array_map(fn($k) => "$k = :$k", array_keys(array_diff_key($data, ['id'=>1]))));
                 $pdo->prepare("UPDATE products SET $set WHERE id = :id")->execute($data);
-                set_flash('success', 'Product updated.');
+                $msg = 'Product updated.';
             } else {
                 $data['slug'] = $slug;
                 $cols = implode(', ', array_keys($data));
                 $ph   = implode(', ', array_map(fn($k) => ":$k", array_keys($data)));
                 $pdo->prepare("INSERT INTO products ($cols) VALUES ($ph)")->execute($data);
                 $id = (int) $pdo->lastInsertId();
-                set_flash('success', 'Product created.');
+                $msg = 'Product created.';
+            }
+            if ($data['status'] === 'active') {
+                set_flash('success', $msg . ' It is now live on the website.');
+            } elseif ($data['status'] === 'draft') {
+                set_flash('success', $msg . ' Saved as draft — change Status to Active to publish it on the website.');
+            } else {
+                set_flash('success', $msg . ' Status is Hidden — it is not listed on the website.');
             }
 
             // Optional image upload
@@ -260,9 +267,10 @@ require_once __DIR__ . '/../inc/admin_layout.php';
                 <label>Publish status</label>
                 <select name="status">
                     <?php foreach (['draft','active','hidden'] as $st): ?>
-                        <option value="<?= $st ?>" <?= $v('status','draft')===$st?'selected':'' ?>><?= e(label($st)) ?></option>
+                        <option value="<?= $st ?>" <?= $v('status','active')===$st?'selected':'' ?>><?= e(label($st)) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <p class="muted" style="font-size:.8rem;margin-top:6px"><strong>Active</strong> = visible to customers on the website. <strong>Draft</strong> and <strong>Hidden</strong> are not listed publicly.</p>
             </div>
         </div>
         <div class="field"><label><input type="checkbox" name="is_featured" value="1" <?= $v('is_featured')?'checked':'' ?>> Show on homepage (featured)</label></div>

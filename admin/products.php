@@ -6,10 +6,14 @@ $pdo = db();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
-    if (input('action') === 'delete') {
-        $id = (int) input('id');
+    $action = input('action');
+    $id = (int) input('id');
+    if ($action === 'delete' && $id) {
         $pdo->prepare('DELETE FROM products WHERE id = :id')->execute([':id' => $id]);
         set_flash('success', 'Product deleted.');
+    } elseif ($action === 'publish' && $id) {
+        $pdo->prepare("UPDATE products SET status='active' WHERE id = :id")->execute([':id' => $id]);
+        set_flash('success', 'Product is now live on the website.');
     }
     redirect(base_url('/admin/products.php'));
 }
@@ -41,10 +45,23 @@ require_once __DIR__ . '/../inc/admin_layout.php';
                 <td><?= e($p['category_name'] ?? '-') ?></td>
                 <td><?= money(effective_price($p)) ?></td>
                 <td><span class="badge badge-<?= e($p['stock_status']) ?>"><?= e(label($p['stock_status'])) ?></span></td>
-                <td><span class="tag"><?= e(label($p['status'])) ?></span></td>
+                <td>
+                    <?php $st = (string)$p['status']; ?>
+                    <span class="tag" style="background:<?= $st==='active'?'#2f6a3a':($st==='draft'?'#b97a1a':'#7a3a3a') ?>;color:#fff">
+                        <?= e(label($st)) ?><?= $st==='active' ? ' · live' : ' · not on site' ?>
+                    </span>
+                </td>
                 <td>
                     <div class="actions-inline">
                         <a class="btn btn-soft btn-sm" href="<?= base_url('/admin/product_form.php?id=' . (int)$p['id']) ?>">Edit</a>
+                        <?php if ($p['status'] !== 'active'): ?>
+                        <form method="post">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="publish">
+                            <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
+                            <button class="btn btn-primary btn-sm" type="submit">Publish</button>
+                        </form>
+                        <?php endif; ?>
                         <form method="post" data-confirm="Delete this product permanently?">
                             <?= csrf_field() ?>
                             <input type="hidden" name="action" value="delete">
