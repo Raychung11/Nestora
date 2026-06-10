@@ -55,7 +55,7 @@ require_once __DIR__ . '/inc/header.php';
                         <div class="pc-img"><img src="<?= e($img) ?>" alt="<?= e($p['name']) ?>" loading="lazy"></div>
                         <div class="pc-body">
                             <?php if (!empty($p['feeling_tags'])): ?>
-                                <span class="pc-feel"><?= e(str_replace(',', ' &middot; ', $p['feeling_tags'])) ?></span>
+                                <span class="pc-feel"><?= str_replace(',', ' &middot; ', e($p['feeling_tags'])) ?></span>
                             <?php endif; ?>
                             <h3><?= e($p['name']) ?></h3>
                             <p class="pc-desc"><?= e($p['short_description']) ?></p>

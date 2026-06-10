@@ -14,6 +14,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'publish' && $id) {
         $pdo->prepare("UPDATE products SET status='active' WHERE id = :id")->execute([':id' => $id]);
         set_flash('success', 'Product is now live on the website.');
+    } elseif ($action === 'feature' && $id) {
+        $pdo->prepare('UPDATE products SET is_featured = 1 - is_featured WHERE id = :id')->execute([':id' => $id]);
+        $stmt = $pdo->prepare('SELECT is_featured FROM products WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+        $now = (int) $stmt->fetchColumn();
+        set_flash('success', $now ? 'Featured on the homepage.' : 'Removed from the homepage.');
     }
     redirect(base_url('/admin/products.php'));
 }
@@ -31,6 +37,10 @@ require_once __DIR__ . '/../inc/admin_layout.php';
         <h2>All products</h2>
         <a class="btn btn-primary btn-sm" href="<?= base_url('/admin/product_form.php') ?>">+ New product</a>
     </div>
+    <p class="muted" style="font-size:.85rem;margin:-4px 0 14px">
+        Click <strong>Feature</strong> to show a product on the homepage (up to 3 per category appear there).
+        Featured items are tagged below.
+    </p>
     <?php if (!$products): ?>
         <p class="muted">No products yet. Create your first comfort piece.</p>
     <?php else: ?>
@@ -62,6 +72,14 @@ require_once __DIR__ . '/../inc/admin_layout.php';
                             <button class="btn btn-primary btn-sm" type="submit">Publish</button>
                         </form>
                         <?php endif; ?>
+                        <form method="post">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="feature">
+                            <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
+                            <button class="btn btn-soft btn-sm" type="submit" title="<?= $p['is_featured'] ? 'Hide from homepage' : 'Show on homepage' ?>">
+                                <?= $p['is_featured'] ? 'Unfeature' : 'Feature' ?>
+                            </button>
+                        </form>
                         <form method="post" data-confirm="Delete this product permanently?">
                             <?= csrf_field() ?>
                             <input type="hidden" name="action" value="delete">

@@ -50,7 +50,7 @@ require_once __DIR__ . '/inc/header.php';
             </div>
             <div class="pd-info">
                 <?php if (!empty($p['feeling_tags'])): ?>
-                    <div class="pd-feel"><?= e(str_replace(',', ' &middot; ', $p['feeling_tags'])) ?></div>
+                    <div class="pd-feel"><?= str_replace(',', ' &middot; ', e($p['feeling_tags'])) ?></div>
                 <?php endif; ?>
                 <h1><?= e($p['name']) ?></h1>
                 <p class="muted"><?= e($p['short_description']) ?></p>
