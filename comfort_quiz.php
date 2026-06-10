@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/mailer.php';
 
 $pageTitle = 'Comfort Quiz';
 $pageDesc  = 'Discover your home feeling with the Nestora AI Comfort Advisor.';
@@ -78,6 +79,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':pref' => $preference, ':budget' => $budget, ':inst' => $installment,
             ':rec' => $summary,
         ]);
+
+        $leadHtml = '<p><strong>Name:</strong> ' . e($name) . '<br>'
+            . '<strong>Phone:</strong> ' . e($phone)
+            . ($email ? '<br><strong>Email:</strong> ' . e($email) : '') . '</p>'
+            . '<p>' . e($summary) . '</p>';
+        notify_admin('New Comfort Quiz lead', mail_template('New Comfort Quiz lead', $leadHtml),
+            $email ?: null);
+        if ($email) {
+            send_mail($email, 'Your Nestora comfort recommendation',
+                mail_template('Your home feeling, curated',
+                    '<p>Hi ' . e($name) . ', thank you for taking the Comfort Quiz. '
+                    . 'Our Nestora AI Comfort Advisor will follow up with curated suggestions for you.</p>'
+                    . $leadHtml));
+        }
 
         $results = [
             'name'      => $name,

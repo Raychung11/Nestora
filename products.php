@@ -49,18 +49,19 @@ require_once __DIR__ . '/inc/header.php';
             <div class="product-grid">
                 <?php foreach ($products as $p):
                     $img = product_image_url(product_primary_image((int)$p['id']));
-                    $eff = effective_price($p); ?>
+                    $eff = effective_price($p);
+                    $was = reference_price($p); ?>
                     <a class="product-card" href="<?= base_url('/product.php?slug=' . urlencode($p['slug'])) ?>">
                         <div class="pc-img"><img src="<?= e($img) ?>" alt="<?= e($p['name']) ?>" loading="lazy"></div>
                         <div class="pc-body">
                             <?php if (!empty($p['feeling_tags'])): ?>
-                                <span class="pc-feel"><?= e(str_replace(',', ' &middot; ', $p['feeling_tags'])) ?></span>
+                                <span class="pc-feel"><?= str_replace(',', ' &middot; ', e($p['feeling_tags'])) ?></span>
                             <?php endif; ?>
                             <h3><?= e($p['name']) ?></h3>
                             <p class="pc-desc"><?= e($p['short_description']) ?></p>
                             <div class="pc-price">
                                 <span class="now"><?= money($eff) ?></span>
-                                <?php if ($eff < (float)$p['price']): ?><span class="was"><?= money((float)$p['price']) ?></span><?php endif; ?>
+                                <?php if ($was > $eff): ?><span class="was"><?= money($was) ?></span><?php endif; ?>
                             </div>
                             <?php if ($lbl = installment_label($p)): ?>
                                 <span class="pc-inst"><?= e($lbl) ?></span>

@@ -7,3 +7,8 @@ RewriteRule ^(config|inc|database)/ - [F,L]
 
 # Default document
 DirectoryIndex index.php
+
+# NOTE: upload limits live in .user.ini at the project root (PHP-FPM/CGI
+# hosts read it automatically). We do NOT set php_value directives here
+# because most shared hosts run PHP as FPM and Apache returns 500 when
+# it sees php_value in .htaccess on those hosts.
