@@ -159,9 +159,14 @@ require_once __DIR__ . '/../inc/admin_layout.php';
         <div class="form-row">
             <div class="field">
                 <label>Product type</label>
+                <?php
+                    $typeFromUrl = input('type');
+                    $defaultType = in_array($typeFromUrl, ['furniture','essential_oil','diffuser','bundle'], true)
+                        ? $typeFromUrl : 'furniture';
+                ?>
                 <select name="product_type">
                     <?php foreach (['furniture','essential_oil','diffuser','bundle'] as $t): ?>
-                        <option value="<?= $t ?>" <?= $v('product_type','furniture')===$t?'selected':'' ?>><?= e(label($t)) ?></option>
+                        <option value="<?= $t ?>" <?= $v('product_type', $defaultType)===$t?'selected':'' ?>><?= e(label($t)) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
