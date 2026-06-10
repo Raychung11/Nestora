@@ -8,25 +8,7 @@ RewriteRule ^(config|inc|database)/ - [F,L]
 # Default document
 DirectoryIndex index.php
 
-# Upload limits (fallback for mod_php hosts; PHP-FPM uses .user.ini).
-<IfModule mod_php.c>
-    php_value upload_max_filesize 25M
-    php_value post_max_size       30M
-    php_value max_execution_time  120
-    php_value max_input_time      120
-    php_value memory_limit        256M
-</IfModule>
-<IfModule mod_php7.c>
-    php_value upload_max_filesize 25M
-    php_value post_max_size       30M
-    php_value max_execution_time  120
-    php_value max_input_time      120
-    php_value memory_limit        256M
-</IfModule>
-<IfModule mod_php8.c>
-    php_value upload_max_filesize 25M
-    php_value post_max_size       30M
-    php_value max_execution_time  120
-    php_value max_input_time      120
-    php_value memory_limit        256M
-</IfModule>
+# NOTE: upload limits live in .user.ini at the project root (PHP-FPM/CGI
+# hosts read it automatically). We do NOT set php_value directives here
+# because most shared hosts run PHP as FPM and Apache returns 500 when
+# it sees php_value in .htaccess on those hosts.
