@@ -309,14 +309,30 @@ function generate_order_number(): string
  * ------------------------------------------------------------------ */
 function handle_image_upload(array $file, string $targetDir, string $prefix = 'img'): ?string
 {
+    // POST body bigger than php.ini post_max_size: PHP empties $_FILES, so
+    // detect it via Content-Length and report a clear error rather than
+    // silently saving the record without an image.
+    if (empty($file) && ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+        $serverLimit = (int) (ini_get('post_max_size') ?: 0);
+        throw new RuntimeException('Upload exceeded the server limit (' . ($serverLimit ?: 'post_max_size') . 'M). Please use a smaller image or ask your host to raise post_max_size / upload_max_filesize.');
+    }
     if (!isset($file['error']) || $file['error'] === UPLOAD_ERR_NO_FILE) {
         return null;
     }
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        throw new RuntimeException('Image upload failed. Please try again.');
+    if ($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE) {
+        throw new RuntimeException('Image too large for the server. Try a photo under ' . (ini_get('upload_max_filesize') ?: '25M') . '.');
     }
-    if ($file['size'] > 5 * 1024 * 1024) {
-        throw new RuntimeException('Image too large (max 5MB).');
+    if ($file['error'] === UPLOAD_ERR_PARTIAL) {
+        throw new RuntimeException('Upload was interrupted before finishing. Please try again on a stable connection.');
+    }
+    if ($file['error'] === UPLOAD_ERR_NO_TMP_DIR || $file['error'] === UPLOAD_ERR_CANT_WRITE) {
+        throw new RuntimeException('Server could not save the upload (temp directory not writable). Please contact support.');
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Image upload failed (code ' . (int) $file['error'] . '). Please try again.');
+    }
+    if ($file['size'] > 25 * 1024 * 1024) {
+        throw new RuntimeException('Image too large (max 25MB).');
     }
 
     $finfo = new finfo(FILEINFO_MIME_TYPE);
@@ -327,11 +343,17 @@ function handle_image_upload(array $file, string $targetDir, string $prefix = 'i
         'image/webp' => 'webp',
     ];
     if (!isset($allowed[$mime])) {
-        throw new RuntimeException('Only JPG, PNG and WEBP images are allowed.');
+        $hint = $mime === 'image/heic' || $mime === 'image/heif'
+            ? ' iPhone HEIC photos are not supported — set your iPhone to "Most Compatible" (Settings → Camera → Formats), or convert to JPG first.'
+            : '';
+        throw new RuntimeException('Only JPG, PNG and WEBP images are allowed.' . $hint);
     }
 
     if (!is_dir($targetDir)) {
         mkdir($targetDir, 0775, true);
+    }
+    if (!is_writable($targetDir)) {
+        throw new RuntimeException('Upload folder is not writable on the server (' . basename($targetDir) . '). Please contact support to fix permissions.');
     }
 
     $ext      = $allowed[$mime];

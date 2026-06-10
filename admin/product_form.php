@@ -286,7 +286,11 @@ require_once __DIR__ . '/../inc/admin_layout.php';
             <div class="field"><label>Low-stock alert at (0 = off)</label><input type="number" name="low_stock_threshold" min="0" value="<?= e((string)$v('low_stock_threshold','0')) ?>"></div>
         </div>
 
-        <div class="field"><label>Add product image (JPG, PNG, WEBP)</label><input type="file" name="image" accept="image/jpeg,image/png,image/webp"></div>
+        <div class="field">
+            <label>Add product image (JPG, PNG, WEBP)</label>
+            <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+            <p class="muted" style="font-size:.8rem;margin-top:6px">Max upload size on this server: <strong><?= e((string) ini_get('upload_max_filesize')) ?></strong>. iPhone photos must be JPG (Settings &rarr; Camera &rarr; Formats &rarr; Most Compatible) — HEIC is not supported.</p>
+        </div>
 
         <button class="btn btn-primary btn-lg" type="submit"><?= $product ? 'Save changes' : 'Create product' ?></button>
     </form>
